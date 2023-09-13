@@ -22,8 +22,6 @@ import {
     inlineReference, removeFunctionIfUnused, removeVariableIfUnused, simplify
 } from "./traverse";
 
-import sample from './sample';
-
 globalThis.logDebug = (...msg:any[]) => console.log(...msg);
 
 const nodeCssClasses = {
@@ -384,4 +382,3 @@ class Editor {
 }
 
 const editor = new Editor(document.getElementById('root')!);
-editor.setValue(sample);
