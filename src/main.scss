@@ -1,0 +1,77 @@
+@import "~bulma/bulma.sass";
+
+#editor {
+  height: 80vh;
+  overflow-y: auto;
+  border: 1px solid #000000;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+  padding: 4px 0;
+  outline: none;
+  tab-size: 4;
+  -webkit-user-modify: read-write-plaintext-only;
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;;
+}
+
+.ͼline {
+  display: block;
+  padding: 0 2px 0 6px;
+  .active {
+    background-color: #cceeff44;
+  }
+  .selected:not(.active) {
+    background-color: #2b74b1;
+  }
+}
+
+// keyword
+.ͼb {
+  color: #708;
+}
+// literal boolean
+.ͼc {
+  color: #219;
+}
+
+// literal number
+.ͼd {
+  color: #164;
+}
+
+// literal string
+.ͼe {
+  color: #a11;
+}
+
+// literal regex, template
+.ͼf {
+  color: #e40;
+}
+
+// identity
+.ͼg {
+  color: #00f;
+}
+
+// comment
+.ͼm {
+  color: #940;
+}
+
+.ͼunknown {
+  color: white;
+  background-color: red;
+}
+
+
+#history {
+  padding-bottom: 2rem;
+  .card {
+    margin-bottom: 1.5rem;
+    .card-content {
+      white-space: pre;
+      overflow: auto;
+      max-height: 480px;
+    }
+  }
+}

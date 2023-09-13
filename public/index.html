@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    ${links}
+    <title>Interactive Javascript Deobfuscation</title>
+</head>
+<body>
+<div id="root" class="container">
+    <div class="columns is-gapless" style="min-height: 100vh">
+        <div class="column is-8" style="min-height: 100vh">
+            <div>
+                <div id="editor" contenteditable="true">
+                </div>
+                <div>
+                    <button id="refreshBtn" class="button">Refresh</button>
+                </div>
+            </div>
+        </div>
+        <div class="column is-4" style="min-height: 100vh">
+            <div id="selection"></div>
+            <div>
+                <textarea id="evalInput" class="textarea" placeholder="Eval Input"></textarea>
+            </div>
+            <div class="toolbar">
+                <div>Run any time</div>
+                <button id="inlineBtn" class="button" title="Inline expressions and references">Inline</button>
+                <button id="removeBtn" class="button" title="Remove if unused">Remove</button>
+                <button id="evalConstantBtn" class="button" title="Eval constant expressions">Eval Constant</button>
+                <button id="simplifyBtn" class="button" title="Simplify constant condition">Simplify</button>
+            </div>
+            <div class="toolbar">
+                <div>Run in order</div>
+                <button id="evalObfuscatedStringBtn" class="button" title="Eval obfuscated strings">Eval Obfuscated Strings</button>
+                <button id="flattenHashCallBtn" class="button" title="Flatten hash call">Flatten Hash Call</button>
+                <button id="computedToDotBtn" class="button" title="Computed member expression to dot">Computed To Dot</button>
+            </div>
+        </div>
+    </div>
+    <div id="history">
+
+    </div>
+</div>
+${scripts}
+</body>
+</html>
