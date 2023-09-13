@@ -554,7 +554,7 @@ export function evalObfuscatedString(evalCode: string, root: EsNode) {
 export function flattenHashedCall(root: EsNode) {
     const objs: ESTree.Identifier[] = [];
     traverse(root, {
-        enter(n: EsNode) {
+        leave(n: EsNode) {
             if (n.type === esprima.Syntax.Identifier && n.parent?.type === esprima.Syntax.VariableDeclarator && (n.parent as ESTree.VariableDeclarator).init?.type === esprima.Syntax.ObjectExpression) {
                 const obj = (n.parent as ESTree.VariableDeclarator).init as ESTree.ObjectExpression;
                 // All the property keys are string literals and property values are literals or functions
@@ -575,7 +575,7 @@ export function flattenHashedCall(root: EsNode) {
         });
         const rt = closestBlock(objId);
         replace(rt!, {
-            enter(n: EsNode) {
+            leave(n: EsNode) {
                 // function with single line operation
                 if (n.type === esprima.Syntax.CallExpression && (n as ESTree.CallExpression).callee.type === esprima.Syntax.MemberExpression) {
                     const callExpr = n as ESTree.CallExpression;
