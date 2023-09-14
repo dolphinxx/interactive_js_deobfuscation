@@ -14,13 +14,13 @@
   "license": "The Unlicense",
   "dependencies": {
     "@codemirror/basic-setup": "^0.20.0",
-    "escodegen": "^2.1.0",
-    "estraverse": "^5.3.0",
     "acorn": "^8.10.0",
     "bulma": "^0.9.4",
     "diff": "^5.1.0",
     "escape-html": "^1.0.3",
-    "esprima": "^4.0.1"
+    "escodegen": "^2.1.0",
+    "esprima": "^4.0.1",
+    "estraverse": "^5.3.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.4",
@@ -35,7 +35,6 @@
     "@types/estree": "^1.0.1",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.0",
-    "astring": "^1.8.6",
     "chai": "^4.3.8",
     "chai-string": "^1.5.0",
     "mocha": "^10.2.0",
