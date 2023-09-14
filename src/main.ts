@@ -19,10 +19,10 @@ import {
     inlineExpression,
     inlineFunction,
     inlineIdentifier, inlineIdentifierReference,
-    inlineReference, removeFunctionIfUnused, removeVariableIfUnused, simplify
+    inlineReference, removeFunctionIfUnused, removeVariableIfUnused, simplify, unshuffleWhileSwitch
 } from "./traverse";
 
-globalThis.logDebug = (...msg:any[]) => console.log(...msg);
+globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 
 const nodeCssClasses = {
     keyword: 'ͼb',
@@ -49,7 +49,7 @@ class NodeIdHolder {
 
     nid(node: EsNode): string {
         let id = this._list.indexOf(node);
-        if(id !== -1) {
+        if (id !== -1) {
             return id.toString();
         }
         id = this._list.length;
@@ -65,9 +65,9 @@ class NodeIdHolder {
         return this._list[parseInt(id)];
     }
 
-    getId(node:EsNode):string|undefined {
+    getId(node: EsNode): string | undefined {
         const id = this._list.indexOf(node);
-        if(id === -1) {
+        if (id === -1) {
             return undefined;
         }
         return id.toString();
@@ -98,13 +98,13 @@ class Editor {
     root: HTMLElement;
     editorEl: HTMLElement;
     selectionEl: HTMLElement;
-    historyEl:HTMLElement;
+    historyEl: HTMLElement;
     _active?: HTMLElement;
     _nodeIdHolder: NodeIdHolder;
     _code?: string;
     // _history: string[];
     program?: EsNode;
-    _history:{[key:string]:string};
+    _history: { [key: string]: string };
 
     constructor(root: HTMLElement) {
         this.root = root;
@@ -146,16 +146,16 @@ class Editor {
                 this._active = event.target;
                 this._active.classList.add('active');
                 this._active.classList.add('selected');
-                if(node.type === esprima.Syntax.Identifier) {
+                if (node.type === esprima.Syntax.Identifier) {
                     removeBtn.disabled = false;
-                    if(node.parent /*&& (node.parent.type !== esprima.Syntax.VariableDeclarator || (node.parent as ESTree.VariableDeclarator).id !== node)*/) {
+                    if (node.parent /*&& (node.parent.type !== esprima.Syntax.VariableDeclarator || (node.parent as ESTree.VariableDeclarator).id !== node)*/) {
                         inlineBtn.disabled = false;
                     }
                     findIdentifierUsage(node as ESTree.Identifier).forEach(n => {
                         const nnid = this._nodeIdHolder.getId(n);
-                        if(nnid) {
+                        if (nnid) {
                             const nel = this.editorEl.querySelector(`[data-nid="${nnid}"]`);
-                            if(nel) {
+                            if (nel) {
                                 nel.classList.add('selected');
                             }
                         }
@@ -182,9 +182,9 @@ class Editor {
         });
         removeBtn.addEventListener('click', () => {
             const node = this._nodeIdHolder.node(this._active?.getAttribute('data-nid')!) as ESTree.Identifier;
-            if(node.parent?.type === esprima.Syntax.VariableDeclarator) {
+            if (node.parent?.type === esprima.Syntax.VariableDeclarator) {
                 removeVariableIfUnused((node.parent as ESTree.VariableDeclarator).id);
-            } else if(node.parent?.type === esprima.Syntax.FunctionDeclaration && (node.parent as ESTree.FunctionDeclaration).id === node) {
+            } else if (node.parent?.type === esprima.Syntax.FunctionDeclaration && (node.parent as ESTree.FunctionDeclaration).id === node) {
                 removeFunctionIfUnused(node);
             } else {
                 return;
@@ -193,18 +193,18 @@ class Editor {
         });
         inlineBtn.addEventListener('click', () => {// TODO: 带参数方法
             const node = this._nodeIdHolder.node(this._active?.getAttribute('data-nid')!) as ESTree.Identifier;
-            if(node.parent?.type === esprima.Syntax.FunctionDeclaration) {
+            if (node.parent?.type === esprima.Syntax.FunctionDeclaration) {
                 inlineFunction(node, this.program!);
-            } else if(node.parent?.type === esprima.Syntax.CallExpression) {
+            } else if (node.parent?.type === esprima.Syntax.CallExpression) {
                 inlineExpression(node, this.program!);
-            } else if(node.parent?.type === esprima.Syntax.AssignmentExpression) {
-                if((node.parent as ESTree.AssignmentExpression).right === node) {
+            } else if (node.parent?.type === esprima.Syntax.AssignmentExpression) {
+                if ((node.parent as ESTree.AssignmentExpression).right === node) {
                     inlineReference(node, (node.parent as ESTree.AssignmentExpression).left, closestBlock(node)!);
                 } else {
                     inlineIdentifierReference(node);
                 }
-            } else if(node.parent?.type === esprima.Syntax.VariableDeclarator) {
-                if((node.parent as ESTree.VariableDeclarator).init === node) {
+            } else if (node.parent?.type === esprima.Syntax.VariableDeclarator) {
+                if ((node.parent as ESTree.VariableDeclarator).init === node) {
                     inlineReference(node, (node.parent as ESTree.VariableDeclarator).id!, closestBlock(node)!);
                 } else {
                     inlineIdentifierReference(node);
@@ -219,12 +219,12 @@ class Editor {
             this.renderAst(this.program!);
         });
         this.root.querySelector('#evalObfuscatedStringBtn')?.addEventListener('click', () => {
-            if(!evalInput.value) {
+            if (!evalInput.value) {
                 alert('no eval input');
                 return;
             }
-           evalObfuscatedString(evalInput.value, this.program!);
-           this.renderAst(this.program!);
+            evalObfuscatedString(evalInput.value, this.program!);
+            this.renderAst(this.program!);
         });
         this.root.querySelector('#flattenHashCallBtn')?.addEventListener('click', () => {
             flattenHashedMember(this.program!);
@@ -238,6 +238,10 @@ class Editor {
             computedToDot(this.program!);
             this.renderAst(this.program!);
         });
+        this.root.querySelector('#unshuffleWhileSwitchBtn')?.addEventListener('click', () => {
+            unshuffleWhileSwitch(this.program!);
+            this.renderAst(this.program!);
+        });
     }
 
     wrapNode(code: string, clazz: string, node: EsNode) {
@@ -245,7 +249,7 @@ class Editor {
     }
 
     writeRaw(code: string): string {
-        if(code === '`') {
+        if (code === '`') {
             return `<span class="${nodeCssClasses.template}">${code}</span>`
         }
         return escapeHtml(code);
@@ -255,22 +259,21 @@ class Editor {
         return `<span class="${nodeCssClasses.keyword}">${code}</span>`
     }
 
-    writeLineEnd():string {
+    writeLineEnd(): string {
         return '</div><div class="ͼline">'
     }
 
     writeNode(code: string, node: EsNode): string {
-        switch(node.type) {
+        switch (node.type) {
             case esprima.Syntax.TemplateElement: {
                 return this.wrapNode(code, nodeCssClasses.template, node);
             }
             case esprima.Syntax.FunctionExpression:
-            case esprima.Syntax.FunctionDeclaration:
-            {
+            case esprima.Syntax.FunctionDeclaration: {
                 return this.wrapNode(code, nodeCssClasses.keyword, node);
             }
             case esprima.Syntax.Identifier: {
-                if((node as ESTree.Identifier).name === 'undefined') {
+                if ((node as ESTree.Identifier).name === 'undefined') {
                     return `undefined`;
                 }
                 const highlight = node.parent && (
@@ -340,12 +343,12 @@ class Editor {
         }
     }
 
-    addHistory(oldCode:string, newCode:string) {
+    addHistory(oldCode: string, newCode: string) {
         const id = new Date().getTime() + '' + Math.trunc(Math.random() * 1000);
         this._history[id] = oldCode;
         const diffResult = diff.diffLines(oldCode, newCode);
         const fragment = document.createDocumentFragment();
-        let span:HTMLSpanElement;
+        let span: HTMLSpanElement;
         diffResult.forEach(part => {
             const color = part.added ? 'green' :
                 part.removed ? 'red' : 'grey';

@@ -7,6 +7,7 @@ import {EsNode} from "./global";
 import * as astring from './astring';
 import {copy} from "./copy";
 import * as acorn from "acorn";
+import {MemberExpression} from "estree";
 
 /**
  * find the closest parent that matches type
@@ -360,7 +361,7 @@ export function evalConstantExpressions(root: EsNode) {
     replace(root, {
         enter(n: EsNode) {
             // write hexadecimal format to decimal format
-            if(n.type === esprima.Syntax.Literal && typeof (n as ESTree.Literal).value === 'number') {
+            if (n.type === esprima.Syntax.Literal && typeof (n as ESTree.Literal).value === 'number') {
                 (n as ESTree.Literal).raw = (n as ESTree.Literal).value.toString();
                 return;
             }
@@ -605,7 +606,7 @@ export function flattenHashedMember(root: EsNode) {
                     // is a computed member expression, and the object name equals to objName, and the property is a string literal
                     if (memberExpr.computed && isIdentifierIdentical(memberExpr.object, objName) && isStringLiteral(memberExpr.property)) {
                         const propVal = props[(memberExpr.property as ESTree.Literal).value as string];
-                        if(propVal === undefined) {// missing prop value
+                        if (propVal === undefined) {// missing prop value
                             return;
                         }
                         if (propVal.type === esprima.Syntax.FunctionExpression) {
@@ -637,15 +638,15 @@ export function replaceIdentifiers(root: EsNode, map: { [key: string]: EsNode })
     })
 }
 
-export function isLiteral(node: EsNode|null): boolean {
+export function isLiteral(node: EsNode | null): boolean {
     return node != null && node.type === esprima.Syntax.Literal;
 }
 
-export function isStringLiteral(node: EsNode|null): boolean {
+export function isStringLiteral(node: EsNode | null): boolean {
     return node != null && node.type === esprima.Syntax.Literal && typeof (node as ESTree.Literal).value === 'string';
 }
 
-export function isIdentifierIdentical(node: EsNode|null, name: string): boolean {
+export function isIdentifierIdentical(node: EsNode | null, name: string): boolean {
     return node != null && node.type === esprima.Syntax.Identifier && (node as ESTree.Identifier).name === name;
 }
 
@@ -762,4 +763,119 @@ export function computedToDot(root: EsNode) {
             }
         }
     });
+}
+
+/**
+ * checks whether the name of an Identifier or the value of a Literal is equal to `name`
+ * @param name
+ * @param node
+ */
+function isNameEquals(name: string, node?: EsNode | null): boolean {
+    if (!node) {
+        return false;
+    }
+    if (node.type === esprima.Syntax.Identifier) {
+        return (node as ESTree.Identifier).name === name;
+    }
+    if (node.type === esprima.Syntax.Literal) {
+        return (node as ESTree.Literal).value === name;
+    }
+    return false;
+}
+
+function isLiteralEquals(value: any, node?: EsNode | null): boolean {
+    if (!node) {
+        return false;
+    }
+    if (node.type !== esprima.Syntax.Literal) {
+        return false;
+    }
+    return (node as ESTree.Literal).value === value;
+}
+
+/**
+ * unshuffle a block that is shuffled by a while(true) and a switch/case block, and a string(ie "0|2|5|3|4|1") hold the order.
+ * @param root
+ */
+export function unshuffleWhileSwitch(root: EsNode) {
+    // collect
+    const nodes: EsNode[] = [];
+    traverse(root, {
+        enter(n: EsNode) {
+            // find the while statement
+            if (n.type === esprima.Syntax.WhileStatement) {
+                const whileStmt = n as ESTree.WhileStatement;
+                // ensure the test of the while statement is true, and the body of the while statement is a block
+                if (whileStmt.test.type !== esprima.Syntax.Literal || (whileStmt.test as ESTree.Literal).value !== true || whileStmt.body.type !== esprima.Syntax.BlockStatement) {
+                    return;
+                }
+                if (whileStmt.parent?.type !== esprima.Syntax.BlockStatement) {
+                    return;
+                }
+                const parent = whileStmt.parent as ESTree.BlockStatement;
+                if (parent.body.length != 2) {
+                    return;
+                }
+                if (parent.body[0].type !== esprima.Syntax.VariableDeclaration) {
+                    return;
+                }
+                const dec = parent.body[0] as ESTree.VariableDeclaration;
+                if (dec.declarations.length != 2) {
+                    return;
+                }
+                if (dec.declarations[0].init?.type !== esprima.Syntax.CallExpression) {
+                    return;
+                }
+                const callee = (dec.declarations[0].init as ESTree.CallExpression).callee;
+                if (callee.type !== esprima.Syntax.MemberExpression) {
+                    return;
+                }
+                // ensure order-holding string
+                if (!isStringLiteral(callee.object) || !/^\d[\d|]+\d$/.test((callee.object as ESTree.Literal).value as string)) {
+                    return;
+                }
+                // a split call
+                if (!isNameEquals('split', callee.property)) {
+                    return false;
+                }
+                // with an init of 0
+                if (!isLiteralEquals(0, dec.declarations[1].init)) {
+                    return false;
+                }
+
+                const block = whileStmt.body as ESTree.BlockStatement;
+                if (block.body.length !== 2 || block.body[0].type !== esprima.Syntax.SwitchStatement || block.body[1].type !== esprima.Syntax.BreakStatement) {
+                    return;
+                }
+                const switchStmt = block.body[0] as ESTree.SwitchStatement;
+                // ensure the type of each case test is numeric string
+                if (!switchStmt.cases.every(c => c.test?.type === esprima.Syntax.Literal && typeof (c.test as ESTree.Literal).value === 'string' && /^\d+$/.test((c.test as ESTree.Literal).value as string))) {
+                    return;
+                }
+                // confirmed
+                nodes.push(parent);
+            }
+        }
+    });
+
+    replace(root, {
+        leave(n: EsNode) {
+            if (!nodes.includes(n)) {
+                return;
+            }
+            const dec0 = ((n as ESTree.BlockStatement).body[0] as ESTree.VariableDeclaration).declarations[0];
+            const whileStmt = (n as ESTree.BlockStatement).body[1] as ESTree.WhileStatement;
+            const orderStr = (((dec0.init as ESTree.CallExpression).callee as MemberExpression).object as ESTree.Literal).value as string;
+            const orders = orderStr.split('|');
+            const map: { [key: string]: ESTree.SwitchCase } = {};
+            ((whileStmt.body as ESTree.BlockStatement).body[0] as ESTree.SwitchStatement).cases.forEach(_ => map[(_.test as ESTree.Literal).value as string] = _);
+            (n as ESTree.BlockStatement).body = orders.map(o => {
+                return map[o].consequent.filter(c => c.type !== esprima.Syntax.ContinueStatement).map(c => {
+                    c.parent = n;
+                    return c;
+                });
+            }).flat();
+            (this as Controller).skip();
+        }
+    })
 }

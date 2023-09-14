@@ -13,6 +13,6 @@ export function runTest(input:string, expected:string, transformer:(node:EsNode)
     const node = acorn.parse(input, {ecmaVersion: 'latest'}) as EsNode;
     applyAstParent(node);
     transformer(node);
-    const actual = astring.generate(node).trim();
+    const actual = astring.generate(node, {indent: '    '}).trim();
     expect(actual).to.equal(expected, msg as any);
 }
