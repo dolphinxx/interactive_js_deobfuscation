@@ -19,8 +19,7 @@
     "bulma": "^0.9.4",
     "diff": "^5.1.0",
     "escape-html": "^1.0.3",
-    "esprima": "^4.0.1",
-    "is-what": "^4.1.15"
+    "esprima": "^4.0.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.4",

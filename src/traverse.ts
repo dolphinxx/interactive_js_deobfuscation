@@ -5,7 +5,7 @@ import * as esprima from 'esprima';
 import {Controller, replace, traverse} from 'estraverse';
 import {EsNode} from "./global";
 import * as astring from './astring';
-import {copy} from "./copy-anything";
+import {copy} from "./copy";
 import * as acorn from "acorn";
 
 /**
@@ -60,10 +60,10 @@ export function findIdentifierUsage(id: ESTree.Identifier): ESTree.Identifier[] 
     return found;
 }
 
-export function cloneNode(node: EsNode, parent: EsNode|null): EsNode {
-    const result = copy(node, {excludes: ['$parent']});
-    result.parent = parent;
+export function cloneNode(node: EsNode, parent: EsNode | null): EsNode {
+    const result = copy(node, {excludes: ['parent']});
     applyAstParent(result);
+    result.parent = parent;
     return result;
 }
 
