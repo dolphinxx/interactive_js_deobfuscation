@@ -11,7 +11,7 @@ if(true) {console.log(123)}
 var b = 2;`;
             const expected = `var a = 1;
 {
-  console.log(123);
+    console.log(123);
 }
 var b = 2;`;
             run(input, expected, 'should keep only body statement');
@@ -30,7 +30,7 @@ if(false) {console.log(123)} else {console.log(456)}
 var b = 2;`;
             const expected = `var a = 1;
 {
-  console.log(456);
+    console.log(456);
 }
 var b = 2;`;
             run(input, expected, 'should remove always-false if statement and trailing else keyword');
@@ -41,7 +41,7 @@ if(false) {console.log(123)} else if(1===1) {console.log(456)}
 var b = 2;`;
             const expected = `var a = 1;
 if (1 === 1) {
-  console.log(456);
+    console.log(456);
 }
 var b = 2;`;
             run(input, expected, 'should remove always-false if statement and trailing else keyword');
@@ -49,18 +49,18 @@ var b = 2;`;
         it('always false with else if and alternative', () => {
             const input = `var a = 1;
 if(false) {
-  console.log(123);
+    console.log(123);
 } else if(1===1) {
-  console.log(456);
+    console.log(456);
 } else {
-  console.log(789);
+    console.log(789);
 }
 var b = 2;`;
             const expected = `var a = 1;
 if (1 === 1) {
-  console.log(456);
+    console.log(456);
 } else {
-  console.log(789);
+    console.log(789);
 }
 var b = 2;`;
             run(input, expected, 'should remove always-false if statement and trailing else keyword');
@@ -68,40 +68,40 @@ var b = 2;`;
         it('complex', () => {
             const input = `var a = 1;
 if (false) {
-  console.log(1);
+    console.log(1);
 } else if (1 === 1) {
-  console.log(2);
+    console.log(2);
 } else if (false) {
-  console.log(3);
+    console.log(3);
 } else if (true) {
-  console.log(4);
+    console.log(4);
 }
 if (true) {
-  console.log(5);
-  if ( true ) {
-    console.log(6);
-    if ( false ) {
-      console.log(7);
+    console.log(5);
+    if ( true ) {
+        console.log(6);
+        if ( false ) {
+            console.log(7);
     } else {
-      console.log(8);
+        console.log(8);
     }
   }
 }
 var b = 2;`;
             const expected = `var a = 1;
 if (1 === 1) {
-  console.log(2);
+    console.log(2);
 } else {
-  console.log(4);
+    console.log(4);
 }
 {
-  console.log(5);
-  {
-    console.log(6);
+    console.log(5);
     {
-      console.log(8);
+        console.log(6);
+        {
+            console.log(8);
+        }
     }
-  }
 }
 var b = 2;`;
             run(input, expected);
@@ -111,7 +111,7 @@ var b = 2;`;
         it('false', () => {
             const input = `var a = 1;
 while (false) {
-  console.log(1);
+    console.log(1);
 }
 var b = 2;`;
             const expected = `var a = 1;
@@ -140,18 +140,18 @@ var b = 2;`;
         it('true with empty body', () => {
             const input = `var a = 1;
 while (true) {
-;
-{
-}
-{
-  {
+    ;
     {
-      ;
-      ;
-      ;
     }
-  }
-}
+    {
+        {
+            {
+                ;
+                ;
+                ;
+            }
+        }
+    }
 }
 var b = 2;`;
             const expected = `var a = 1;
@@ -162,36 +162,36 @@ var b = 2;`;
         it('complex', () => {
             const input = `var a = 1;
 while (false) {
-  console.log(1);
+    console.log(1);
 }
 while (true) {
-  console.log(2);
-  while (false) {
-    console.log(3);
-    while (true) {
-      console.log(4);
+    console.log(2);
+    while (false) {
+        console.log(3);
+        while (true) {
+            console.log(4);
+        }
     }
-  }
-  while (true) {
-    ;
-    ;
-  }
-  while (true) {
-    ;
-    console.log(5);
-    ;
-  }
+    while (true) {
+        ;
+        ;
+    }
+    while (true) {
+        ;
+        console.log(5);
+        ;
+    }
 }
 var b = 2;`;
             const expected = `var a = 1;
 while (true) {
-  console.log(2);
-  throw "infinity loop";
-  while (true) {
-    ;
-    console.log(5);
-    ;
-  }
+    console.log(2);
+    throw "infinity loop";
+    while (true) {
+        ;
+        console.log(5);
+        ;
+    }
 }
 var b = 2;`;
             run(input, expected);
@@ -202,21 +202,21 @@ var b = 2;`;
             const input = `var a = 1;
 do {console.log(1)} while (false)
 do {
-  console.log(2);
+    console.log(2);
 } while (false);
 do {
-  console.log(3);
+    console.log(3);
 } while (true);
 var b = 2;`;
             const expected = `var a = 1;
 {
-  console.log(1);
+    console.log(1);
 }
 {
-  console.log(2);
+    console.log(2);
 }
 do {
-  console.log(3);
+    console.log(3);
 } while (true);
 var b = 2;`;
             run(input, expected, 'should run only once for always-false do-while statement');
@@ -226,15 +226,15 @@ var b = 2;`;
 do {;} while (false)
 do {} while (false)
 do {
-  ;
-  ;
-  {
+    ;
     ;
     {
-      ;
+        ;
+        {
+            ;
+        }
+        ;
     }
-    ;
-  }
 } while (false)
 var b = 2;`;
             const expected = `var a = 1;
@@ -246,15 +246,15 @@ var b = 2;`;
 do {;} while (true)
 do {} while (true)
 do {
-  ;
-  ;
-  {
+    ;
     ;
     {
-      ;
+        ;
+        {
+            ;
+        }
+        ;
     }
-    ;
-  }
 } while (true)
 var b = 2;`;
             const expected = `var a = 1;
@@ -299,8 +299,8 @@ var b = 2;`;
 var c = 8;
 var d = (console.log(1), 2);
 (function() {
-  console.log(2);
-  return 1;
+    console.log(2);
+    return 1;
 })();
 var b = 2;`;
             run(input, expected)
