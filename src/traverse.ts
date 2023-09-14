@@ -422,8 +422,8 @@ export function evalConstantExpressions(root: EsNode) {
                     return value;
                 }
                 // same variable comparing
-                if (['==', '===', '!=', '!=='].indexOf(operator) !== -1 && b.left.type === esprima.Syntax.Identifier && b.right.type === esprima.Syntax.Identifier && (b.left as ESTree.Identifier).name === (b.right as ESTree.Identifier).name) {
-                    const value = newLiteral(operator === '==' || operator === '===', n.parent);
+                if (['==', '==='].indexOf(operator) !== -1 && b.left.type === esprima.Syntax.Identifier && b.right.type === esprima.Syntax.Identifier && (b.left as ESTree.Identifier).name === (b.right as ESTree.Identifier).name) {
+                    const value = newLiteral(true, n.parent);
                     globalThis.logDebug('evalConstantExpressions', n, value);
                     return value;
                 }
