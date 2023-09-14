@@ -327,7 +327,7 @@ export function removeFunctionIfUnused(node: EsNode) {
     // TODO
 }
 
-export function newLiteral(val: any, parent: EsNode|null): ESTree.Literal {
+export function newLiteral(val: any, parent: EsNode | null): ESTree.Literal {
     // @ts-ignore
     let result: EsNode = (acorn.parse(JSON.stringify(val), {ecmaVersion: 'latest'}) as ESTree.Program).body[0];
     if (result.type === esprima.Syntax.ExpressionStatement) {
@@ -337,7 +337,7 @@ export function newLiteral(val: any, parent: EsNode|null): ESTree.Literal {
     return result as ESTree.Literal;
 }
 
-export function newIdentifier(name: string, parent: EsNode|null): ESTree.Identifier {
+export function newIdentifier(name: string, parent: EsNode | null): ESTree.Identifier {
     return {
         type: esprima.Syntax.Identifier,
         name,
@@ -345,7 +345,7 @@ export function newIdentifier(name: string, parent: EsNode|null): ESTree.Identif
     };
 }
 
-export function newThrow(msg: string, parent: EsNode|null): ESTree.ThrowStatement {
+export function newThrow(msg: string, parent: EsNode | null): ESTree.ThrowStatement {
     const arg = newLiteral(msg, null);
     const result: ESTree.ThrowStatement = {
         type: esprima.Syntax.ThrowStatement,
@@ -431,7 +431,7 @@ export function evalConstantExpressions(root: EsNode) {
     })
 }
 
-export function arithmetic(left:any, right:any, operator: ESTree.BinaryOperator) {
+export function arithmetic(left: any, right: any, operator: ESTree.BinaryOperator) {
     switch (operator) {
         case "==":
             return left == right;
@@ -497,7 +497,7 @@ export function evalObfuscatedString(evalCode: string, root: EsNode) {
 
     // collect refers to fn
     const alias: string[] = [fn];
-    const aliasNodes:EsNode[] = [];
+    const aliasNodes: EsNode[] = [];
     traverse(root, {
         enter(n: EsNode) {
             if (n.type === esprima.Syntax.AssignmentExpression) {
@@ -551,7 +551,7 @@ export function evalObfuscatedString(evalCode: string, root: EsNode) {
     });
 }
 
-export function flattenHashedCall(root: EsNode) {
+export function flattenHashedMember(root: EsNode) {
     const objs: ESTree.Identifier[] = [];
     traverse(root, {
         leave(n: EsNode) {
@@ -590,19 +590,26 @@ export function flattenHashedCall(root: EsNode) {
                         // replace with the returning argument
                         const funcBodyExpr = cloneNode((propVal.body.body[0] as ESTree.ReturnStatement).argument!, n.parent);
                         replaceIdentifiers(funcBodyExpr, paramsMap);
-                        globalThis.logDebug('flattenHashedCall', objName, n);
+                        globalThis.logDebug('flattenHashedMember Call', objName, n);
                         return funcBodyExpr;
                     }
                     return;
                 }
                 if (n.type === esprima.Syntax.MemberExpression) {
                     const memberExpr = n as ESTree.MemberExpression;
-                    // is a computed member expression, and object name equals to objName, and property is a string literal
+                    // is a computed member expression, and the object name equals to objName, and the property is a string literal
                     if (memberExpr.computed && isIdentifierIdentical(memberExpr.object, objName) && isStringLiteral(memberExpr.property)) {
-                        const propVal = (props[(memberExpr.property as ESTree.Literal).value as string] as ESTree.Literal);
+                        const propVal = props[(memberExpr.property as ESTree.Literal).value as string];
+                        if(propVal === undefined) {// missing prop value
+                            return;
+                        }
+                        if (propVal.type === esprima.Syntax.FunctionExpression) {
+                            // function expression should be handled by CallExpression handler
+                            return;
+                        }
                         // replace with the prop value literal
                         const value = cloneNode(propVal, n.parent);
-                        globalThis.logDebug('flattenHashedCall', objName, n);
+                        globalThis.logDebug('flattenHashedMember', objName, n);
                         return value;
                     }
                 }
@@ -617,7 +624,7 @@ export function flattenHashedCall(root: EsNode) {
 
 export function replaceIdentifiers(root: EsNode, map: { [key: string]: EsNode }) {
     replace(root, {
-        enter(n: EsNode) {
+        leave(n: EsNode) {
             if (n.type === esprima.Syntax.Identifier && map.hasOwnProperty((n as ESTree.Identifier).name)) {
                 return cloneNode(map[(n as ESTree.Identifier).name], n.parent);
             }
@@ -625,16 +632,16 @@ export function replaceIdentifiers(root: EsNode, map: { [key: string]: EsNode })
     })
 }
 
-export function isLiteral(node: EsNode): boolean {
-    return node.type === esprima.Syntax.Literal;
+export function isLiteral(node: EsNode|null): boolean {
+    return node != null && node.type === esprima.Syntax.Literal;
 }
 
-export function isStringLiteral(node: EsNode): boolean {
-    return node.type === esprima.Syntax.Literal && typeof (node as ESTree.Literal).value === 'string';
+export function isStringLiteral(node: EsNode|null): boolean {
+    return node != null && node.type === esprima.Syntax.Literal && typeof (node as ESTree.Literal).value === 'string';
 }
 
-export function isIdentifierIdentical(node: EsNode, name: string): boolean {
-    return node.type === esprima.Syntax.Identifier && (node as ESTree.Identifier).name === name;
+export function isIdentifierIdentical(node: EsNode|null, name: string): boolean {
+    return node != null && node.type === esprima.Syntax.Identifier && (node as ESTree.Identifier).name === name;
 }
 
 export function isEmptyBlockOrStatement(root: EsNode): boolean {

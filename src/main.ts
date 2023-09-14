@@ -15,7 +15,7 @@ import {EsNode} from "./global";
 import * as diff from 'diff';
 import {
     applyAstParent, closestBlock, computedToDot, evalConstantExpressions, evalObfuscatedString,
-    findIdentifierUsage, flattenHashedCall,
+    findIdentifierUsage, flattenHashedMember,
     inlineExpression,
     inlineFunction,
     inlineIdentifier, inlineIdentifierReference,
@@ -227,7 +227,7 @@ class Editor {
            this.renderAst(this.program!);
         });
         this.root.querySelector('#flattenHashCallBtn')?.addEventListener('click', () => {
-            flattenHashedCall(this.program!);
+            flattenHashedMember(this.program!);
             this.renderAst(this.program!);
         });
         this.root.querySelector('#simplifyBtn')?.addEventListener('click', () => {
