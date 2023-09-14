@@ -1,0 +1,94 @@
+var version_ = 'jsjiami.com.v7';
+var wweebb_container = $("#wweebb"), parse_data = $('meta[name=\x22urldata\x22]').attr('content');
+parse_data == "2689a9a056148f5cb3ba8451" ? wweebb_container.append($("<div>").attr('id', "loader2")) : (wweebb_container.append($("<div>").attr('id', 'loader')), wweebb_container.append($('<div>').attr('id', 'load_background')));
+(function() {
+    var O0Q$O$ = window;
+    O0Q$O$.setInterval(QQOQ0QQ, 2000);
+})();
+var posturl_data = btoa(parse_data), request_data = btoa(window.location.href + "###" + $('meta[name=\x22viewdata\x22]').attr("content")), iframe = document.createElement("iframe");
+(detectDevTools(), $(document).ready(function() {
+    $.ajax({
+        'url': "data.php",
+        'method': "POST",
+        'data': {
+            'url_data': posturl_data,
+            'view_data': request_data
+        },
+        'success': function(OOQ$O$) {
+            (wweebb_container.empty(), wweebb_container.append(OOQ$O$));
+        },
+        'error': function($$OO, Q0O0OQ0, $Q$O0Q) {
+            (wweebb_container.empty(), wweebb_container.text($Q$O0Q));
+        }
+    });
+}));
+function detectDevTools() {
+    var OQ0$Q$ = (function() {
+        {
+            var Q00$QQ = true;
+            return function(O0O0Q$, Q0QQ$O) {
+                {
+                    var $0$$$O = Q00$QQ ? function() {
+                        if (Q0QQ$O) {
+                            {
+                                var $Q0QQ0 = Q0QQ$O.apply(O0O0Q$, arguments);
+                                return (Q0QQ$O = null, $Q0QQ0);
+                            }
+                        }
+                    } : function() {};
+                    return (Q00$QQ = false, $0$$$O);
+                }
+            };
+        }
+    })();
+    (function() {
+        OQ0$Q$(this, function() {
+            var QQ0000O = new RegExp("function *\\( *\\)"), $Q0$$O = new RegExp("\\+\\+ *(?:[a-zA-Z_$][0-9a-zA-Z_$]*)", 'i'), Q0OOQ = QQOQ0QQ("init");
+            if (!QQ0000O.test(Q0OOQ + "chain") || !$Q0$$O.test(Q0OOQ + "input")) {
+                Q0OOQ('0');
+            } else QQOQ0QQ();
+        })();
+    })();
+    var O0O0OOO = false;
+    function QOOQ$Q() {
+        window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized && (O0O0OOO = true, $00QO(O0O0OOO));
+    }
+    setInterval(QOOQ$Q, 1000);
+    function $00QO(OO0Q$$) {
+        OO0Q$$ && $.ajax({
+            'url': 'data.php',
+            'method': "POST",
+            'data': {
+                'url_data': btoa('108fe95e32d19a4ab778d4e2'),
+                'view_data': request_data
+            },
+            'success': function($$QOQ) {
+                (wweebb_container.empty(), wweebb_container.append($$QOQ));
+            },
+            'error': function(QO0$O, Q0Q0OQQ, O$00Q0) {
+                (wweebb_container.empty(), wweebb_container.text(O$00Q0));
+            }
+        });
+    }
+}
+function QQOQ0QQ(Q0OQO0Q) {
+    function OO00QQO(QO$$O) {
+        if (typeof QO$$O === "string") {
+            var $$QQQ0 = function() {
+                throw "infinity loop";
+            };
+            return $$QQQ0();
+        } else {
+            if (('' + QO$$O / QO$$O).length !== 1 || QO$$O % 20 === 0) debugger; else {
+                debugger;
+            }
+        }
+        OO00QQO(++QO$$O);
+    }
+    try {
+        if (Q0OQO0Q) {
+            return OO00QQO;
+        } else OO00QQO(0);
+    } catch (OO000QO) {}
+}
+var version_ = 'jsjiami.com.v7';
