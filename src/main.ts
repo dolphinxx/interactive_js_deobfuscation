@@ -294,8 +294,6 @@ class Editor {
                     if (val === null) {
                         return this.wrapNode(code, nodeCssClasses.keyword, node);
                     }
-                } else if(type === 'number') {// write hexadecimal format to decimal format
-                    return this.wrapNode((node as ESTree.Literal).value!.toString(), nodeCssClasses.number, node)
                 }
                 return this.wrapNode(code, nodeCssClasses[typeof (node as ESTree.Literal).value], node);
             }
