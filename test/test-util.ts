@@ -14,5 +14,5 @@ export function runTest(input:string, expected:string, transformer:(node:EsNode)
     applyAstParent(node);
     transformer(node);
     const actual = astring.generate(node, {indent: '    '}).trim();
-    expect(actual).to.equal(expected, msg as any);
+    expect(actual).to.equal(expected.trim(), msg as any);
 }

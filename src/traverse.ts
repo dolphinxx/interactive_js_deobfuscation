@@ -360,10 +360,17 @@ export function newThrow(msg: string, parent: EsNode | null): ESTree.ThrowStatem
 export function evalConstantExpressions(root: EsNode) {
     replace(root, {
         enter(n: EsNode) {
-            // write hexadecimal format to decimal format
-            if (n.type === esprima.Syntax.Literal && typeof (n as ESTree.Literal).value === 'number') {
-                (n as ESTree.Literal).raw = (n as ESTree.Literal).value.toString();
-                return;
+            // write hexadecimal number and string to readable form
+            if (n.type === esprima.Syntax.Literal) {
+                const type = typeof (n as ESTree.Literal).value;
+                if(type === 'number') {
+                    (n as ESTree.Literal).raw = (n as ESTree.Literal).value.toString();
+                    return;
+                }
+                if(type === 'string') {
+                    (n as ESTree.Literal).raw = (n as ESTree.Literal).raw.toString();
+                    return;
+                }
             }
             if (n.type === esprima.Syntax.UnaryExpression) {
                 const arg = (n as ESTree.UnaryExpression).argument;
