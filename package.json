@@ -5,6 +5,7 @@
   "homepage": "https://github.com/dolphinxx/interactive_js_deobfuscation.git",
   "scripts": {
     "test": "ts-mocha -p ./test/tsconfig.json",
+    "testAll": "ts-mocha -p ./test/tsconfig.json -spec test/**/*.spec.ts",
     "dev": "rollup -c rollup.config.dev.mjs -w",
     "build": "rollup -c"
   },
