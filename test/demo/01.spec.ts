@@ -1,5 +1,5 @@
-import {runTest} from "./demo-test";
+import {runTestFile} from "../test-util";
 
 it('demo 01', () => {
-   runTest('01');
+    runTestFile('demo/01');
 });
