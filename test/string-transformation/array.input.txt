@@ -1,0 +1,37 @@
+var _0xd7aa14 = _0x3bec;
+var a = 0x1;
+function _0x4768() {
+    var _0x3289d3 = [
+        'Hello\x20World!世界你好！',
+        'log',
+        'length',
+        'join'
+    ];
+    _0x4768 = function () {
+        return _0x3289d3;
+    };
+    return _0x4768();
+}
+function _0x3bec(_0x476875, _0x3bece3) {
+    var _0x38c634 = _0x4768();
+    _0x3bec = function (_0x251994, _0x416be2) {
+        _0x251994 = _0x251994 - 0x0;
+        var _0x5bfdd5 = _0x38c634[_0x251994];
+        return _0x5bfdd5;
+    };
+    return _0x3bec(_0x476875, _0x3bece3);
+}
+function hi() {
+    var _0x61ae5d = _0x3bec;
+    const _0x343ec7 = _0x61ae5d(0x0);
+    console[_0x61ae5d(0x1)](_0x343ec7);
+}
+var b = [
+    'a',
+    'b',
+    'c'
+];
+if (b[_0xd7aa14(0x2)] === 0x3) {
+    console[_0xd7aa14(0x1)](b[_0xd7aa14(0x3)]('\x20'));
+}
+hi();

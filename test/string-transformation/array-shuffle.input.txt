@@ -1,0 +1,36 @@
+var _0x1147ee = _0x1e18;
+function _0x1e18(_0x4a78f2, _0x1e18e0) {
+    var _0x118281 = _0x4a78();
+    _0x1e18 = function (_0x29ce70, _0x16c0d7) {
+        _0x29ce70 = _0x29ce70 - 0x0;
+        var _0x2fcfd0 = _0x118281[_0x29ce70];
+        return _0x2fcfd0;
+    };
+    return _0x1e18(_0x4a78f2, _0x1e18e0);
+}
+var a = 0x1;
+function hi() {
+    var _0xd41bae = _0x1e18;
+    const _0x44a221 = 'Hello\x20World!世界你好！';
+    console[_0xd41bae(0x2)](_0x44a221);
+}
+var b = [
+    'a',
+    'b',
+    'c'
+];
+function _0x4a78() {
+    var _0x571960 = [
+        'join',
+        'length',
+        'log'
+    ];
+    _0x4a78 = function () {
+        return _0x571960;
+    };
+    return _0x4a78();
+}
+if (b[_0x1147ee(0x1)] === 0x3) {
+    console[_0x1147ee(0x2)](b[_0x1147ee(0x0)]('\x20'));
+}
+hi();

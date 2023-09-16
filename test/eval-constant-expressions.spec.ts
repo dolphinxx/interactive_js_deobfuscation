@@ -3,7 +3,7 @@ import {evalConstantExpressions} from "../src/traverse";
 
 describe('EvalConstantExpressions', () => {
    it('eval constant expressions', () => {
-       const input = `var a = 0x555;
+       const input = `var a = 1365;
 var b = '<div\x20class=\x22pop-msg\x22></div>';
 var c = !0;
 var d = !true;

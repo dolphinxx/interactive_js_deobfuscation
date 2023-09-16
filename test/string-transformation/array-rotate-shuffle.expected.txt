@@ -1,0 +1,23 @@
+// @@raw
+var a = 1;
+function hi() {
+  const msg = "Hello World!世界你好！"
+  console.log(msg);
+}
+var b = ["a", "b", "c"];
+if(b.length === 3) {
+  console.log(b.join(" "));
+}
+hi();
+
+// @@expected
+var a = 1;
+function hi() {
+    const _0x58175e = 'Hello World!世界你好！';
+    console['log'](_0x58175e);
+}
+var b = ['a', 'b', 'c'];
+if (b["length"] === 3) {
+    console["log"](b["join"](' '));
+}
+hi();

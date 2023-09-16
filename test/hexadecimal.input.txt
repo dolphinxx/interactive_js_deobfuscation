@@ -1,0 +1,3 @@
+var a = 'return\x20(function()\x20' + '{}.constructor(\x22return\x20this\x22)(\x20)' + ');';
+var b = 0x123;
+var c = '\u4f60\u597d';

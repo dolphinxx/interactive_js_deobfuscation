@@ -1,79 +1,115 @@
 import {config, expect, use} from 'chai';
 // @ts-ignore
 import chaiDiff from 'chai-diff';
+
 use(chaiDiff);
-import * as acorn from "acorn";
-import * as astring from "../src/astring";
-import {EsNode} from "../src/global";
+import {AstTransformer, EsNode} from "../src/global";
 import {
-    applyAstParent, computedToDot,
+    computedToDot,
     evalConstantExpressions,
-    evalObfuscatedString,
     flattenHashedMember,
     simplify
 } from "../src/traverse";
+import {applyAstParent} from "../src/util";
 import {join} from "path";
 import {existsSync, readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
+import {hexadecimal, stringArrayTransformations} from "../src/transform";
+import {Program} from 'estree';
 
+// globalThis.logDebug = (...msg:string[]) => console.log(...msg);
 // suppress log
-globalThis.logDebug = () => {};
+globalThis.logDebug = () => {
+};
 
 config.truncateThreshold = 0;
 
-export function runTest(input:string, expected:string, transformer:(node:EsNode)=>void, msg?:string) {
-    const node = acorn.parse(input, {ecmaVersion: 'latest'}) as EsNode;
+const generateOptions = {
+    indent: '    '
+};
+
+export function runTest(input: string, expected: string, transformer: (node: EsNode) => void, msg?: string) {
+    const node = parse(input, {ecmaVersion: 'latest'}) as EsNode;
     applyAstParent(node);
     transformer(node);
-    const actual = astring.generate(node, {indent: '    '}).trim();
+    const actual = generate(node, generateOptions).trim();
+    // console.log(actual);
     expect(actual).to.equal(expected.trim(), msg as any);
 }
 
-export function runTestFile(name: string) {
-    const inputFile = join(__dirname, `${name}.input.txt`);
-    const extraFile = join(__dirname, `${name}.extra.txt`);
-    const expectedFile = join(__dirname, `${name}.expected.txt`);
-    const input = readFileSync(inputFile, {encoding: 'utf-8'});
-    const expected = readFileSync(expectedFile, {encoding: 'utf-8'}).replace(/\r\n/g, '\n').trim();
-    let extra: string | null;
-    if (existsSync(extraFile)) {
-        extra = readFileSync(extraFile, {encoding: 'utf-8'})
-    }
-    let ast = parse(input, {ecmaVersion: 'latest'}) as EsNode;
+export function prepareAst(code: string): Program {
+    let ast = parse(code, {ecmaVersion: 'latest'}) as EsNode;
     applyAstParent(ast);
-    if (extra != null) {
-        evalObfuscatedString(extra, ast);
+    return ast as Program;
+}
+
+const expectedLabel = '// @@expected';
+
+function cleanExpected(raw: string): string {
+    const pos = raw.indexOf(expectedLabel);
+    if (pos !== -1) {
+        raw = raw.substring(pos + expectedLabel.length);
     }
-    const generateOptions = {
-        indent: '    '
-    };
-    let code: string = generate(ast, generateOptions).trim();
+    return raw.replace(/\r\n/g, '\n').trim();
+}
+
+/**
+ * Run the transformer(s) and diff the result.
+ * Automatically run hexadecimal after transform.
+ * @param name
+ * @param transformer
+ */
+export function runTransformerTest(name: string, transformer: AstTransformer | AstTransformer[]) {
+    const ast = prepareAst(readFileSync(join(__dirname, `${name}.input.txt`), {encoding: 'utf-8'}));
+    const expectedFile = join(__dirname, `${name}.expected.txt`);
+    const expected = cleanExpected(readFileSync(expectedFile, {encoding: 'utf-8'}));
+    if (transformer instanceof Array) {
+        for (const tr of transformer) {
+            tr(ast);
+        }
+    } else {
+        (transformer as AstTransformer)(ast);
+    }
+    hexadecimal(ast);
+    const actual: string = generate(ast, generateOptions).trim();
+    // console.log(actual);
+    expect(actual).to.not.differentFrom(expected);
+}
+
+export function runTestFile(name: string) {
+    const expectedFile = join(__dirname, `${name}.expected.txt`);
+    const expected = cleanExpected(readFileSync(expectedFile, {encoding: 'utf-8'}));
+    const ast = prepareAst(readFileSync(join(__dirname, `${name}.input.txt`), {encoding: 'utf-8'}));
+    stringArrayTransformations(ast);
+    let actual: string = generate(ast, generateOptions).trim();
     for (let i = 0; i < 10; i++) {
         flattenHashedMember(ast);
         let newCode = generate(ast, generateOptions).trim();
-        if (newCode === code) {
+        if (newCode === actual) {
             break;
         }
-        code = newCode;
+        actual = newCode;
     }
     for (let i = 0; i < 10; i++) {
         evalConstantExpressions(ast);
         let newCode = generate(ast, generateOptions).trim();
-        if (newCode === code) {
+        if (newCode === actual) {
             break;
         }
-        code = newCode;
+        actual = newCode;
     }
     for (let i = 0; i < 10; i++) {
         simplify(ast);
         let newCode = generate(ast, generateOptions).trim();
-        if (newCode === code) {
+        if (newCode === actual) {
             break;
         }
-        code = newCode;
+        actual = newCode;
     }
     computedToDot(ast);
-    code = generate(ast, generateOptions).trim();
-    expect(code).to.not.differentFrom(expected);
+    hexadecimal(ast);
+    actual = generate(ast, generateOptions).trim();
+    // console.log(actual);
+    expect(actual).to.not.differentFrom(expected);
 }

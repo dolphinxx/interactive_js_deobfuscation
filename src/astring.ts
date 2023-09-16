@@ -74,10 +74,9 @@ import {
 
 declare module 'estree' {
     interface BaseNode {
-        comments?:Comment[];
+        comments?: Comment[] | undefined;
     }
 }
-
 
 
 /**
@@ -144,13 +143,17 @@ export interface Options {
      */
     generator?: Generator;
     expressionsPrecedence?: ExpressionsPrecedenceOptions;
-    write?(code: string):string;
-    writeKeyword?(code: string):string;
-    writeNode?(code: string, node?: EstreeNode&{type:string}):string;
-    writeLineEnd?():string;
+
+    write?(code: string): string;
+
+    writeKeyword?(code: string): string;
+
+    writeNode?(code: string, node?: EstreeNode & { type: string }): string;
+
+    writeLineEnd?(): string;
 }
 
-const { stringify } = JSON
+const {stringify} = JSON
 
 /* c8 ignore if */
 if (!String.prototype.repeat) {
@@ -236,11 +239,11 @@ function formatSequence(state, nodes) {
     /*
     Writes into `state` a sequence of `nodes`.
     */
-    const { generator } = state
+    const {generator} = state
     state.write('(')
     if (nodes != null && nodes.length > 0) {
         generator[nodes[0].type](nodes[0], state)
-        const { length } = nodes
+        const {length} = nodes
         for (let i = 1; i < length; i++) {
             const param = nodes[i]
             state.write(', ')
@@ -250,7 +253,7 @@ function formatSequence(state, nodes) {
     state.write(')')
 }
 
-function expressionNeedsParenthesis(state, node, parentNode, isRightHand?:boolean) {
+function expressionNeedsParenthesis(state, node, parentNode, isRightHand?: boolean) {
     const nodePrecedence = state.expressionsPrecedence![node.type]
     if (nodePrecedence === NEEDS_PARENTHESES) {
         return true
@@ -295,11 +298,11 @@ function expressionNeedsParenthesis(state, node, parentNode, isRightHand?:boolea
     )
 }
 
-function formatExpression(state, node, parentNode, isRightHand?:boolean) {
+function formatExpression(state, node, parentNode, isRightHand?: boolean) {
     /*
     Writes into `state` the provided `node`, adding parenthesis around if the provided `parentNode` needs it. If `node` is a right-hand argument, the provided `isRightHand` parameter should be `true`.
     */
-    const { generator } = state
+    const {generator} = state
     if (expressionNeedsParenthesis(state, node, parentNode, isRightHand)) {
         state.write('(')
         generator[node.type](node, state)
@@ -326,12 +329,12 @@ function reindent(state, text, indent) {
     }
 }
 
-function formatComments(state:State, comments:Comment[], indent:string) {
+function formatComments(state: State, comments: Comment[], indent: string) {
     /*
     Writes into `state` the provided list of `comments`, with the given `indent` and `lineEnd` strings.
     Expects to start on a new unindented line.
     */
-    const { length } = comments
+    const {length} = comments
     for (let i = 0; i < length; i++) {
         const comment = comments[i]
         state.write(indent)
@@ -355,7 +358,7 @@ function hasCallExpression(node) {
     */
     let currentNode = node
     while (currentNode != null) {
-        const { type } = currentNode
+        const {type} = currentNode
         if (type[0] === 'C' && type[1] === 'a') {
             // Is CallExpression
             return true
@@ -372,11 +375,11 @@ function formatVariableDeclaration(state, node) {
     /*
     Writes into `state` a variable declaration.
     */
-    const { generator } = state
-    const { declarations } = node
+    const {generator} = state
+    const {declarations} = node
     state.writeKeyword(node.kind);
     state.write(' ');
-    const { length } = declarations
+    const {length} = declarations
     if (length > 0) {
         generator.VariableDeclarator(declarations[0], state)
         for (let i = 1; i < length; i++) {
@@ -393,18 +396,18 @@ let ForInStatement,
     ArrayExpression,
     BlockStatement
 
-export const GENERATOR:Generator = {
+export const GENERATOR: Generator = {
     /*
     Default generator.
     */
-    Program(node, state:State) {
+    Program(node, state: State) {
         const indent = state.indent.repeat(state.indentLevel)
-        const { writeComments } = state
+        const {writeComments} = state
         if (writeComments && node.comments != null) {
             formatComments(state, node.comments, indent)
         }
         const statements = node.body
-        const { length } = statements
+        const {length} = statements
         for (let i = 0; i < length; i++) {
             const statement = statements[i]
             if (writeComments && statement.comments != null) {
@@ -418,9 +421,9 @@ export const GENERATOR:Generator = {
             formatComments(state, node.trailingComments, indent)
         }
     },
-    BlockStatement: (BlockStatement = function (node, state:State) {
+    BlockStatement: (BlockStatement = function (node, state: State) {
         const indent = state.indent.repeat(state.indentLevel++)
-        const { writeComments } = state
+        const {writeComments} = state
         const statementIndent = indent + state.indent
         state.write('{')
         const statements = node.body
@@ -429,7 +432,7 @@ export const GENERATOR:Generator = {
             if (writeComments && node.comments != null) {
                 formatComments(state, node.comments, statementIndent)
             }
-            const { length } = statements
+            const {length} = statements
             for (let i = 0; i < length; i++) {
                 const statement = statements[i]
                 if (writeComments && statement.comments != null) {
@@ -454,14 +457,14 @@ export const GENERATOR:Generator = {
         state.indentLevel--
     }),
     ClassBody: BlockStatement,
-    StaticBlock(node, state:State) {
+    StaticBlock(node, state: State) {
         state.write('static ')
         this.BlockStatement(node, state)
     },
-    EmptyStatement(node:EmptyStatement, state:State) {
+    EmptyStatement(node: EmptyStatement, state: State) {
         state.write(';')
     },
-    ExpressionStatement(node:ExpressionStatement, state:State) {
+    ExpressionStatement(node: ExpressionStatement, state: State) {
         const precedence = state.expressionsPrecedence![node.expression.type]
         if (
             precedence === NEEDS_PARENTHESES ||
@@ -476,7 +479,7 @@ export const GENERATOR:Generator = {
         }
         state.write(';')
     },
-    IfStatement(node:IfStatement, state:State) {
+    IfStatement(node: IfStatement, state: State) {
         state.writeKeyword('if');
         state.write(' (')
         this[node.test.type](node.test, state)
@@ -489,12 +492,12 @@ export const GENERATOR:Generator = {
             this[node.alternate.type](node.alternate, state)
         }
     },
-    LabeledStatement(node:LabeledStatement, state:State) {
+    LabeledStatement(node: LabeledStatement, state: State) {
         this[node.label.type](node.label, state)
         state.write(': ')
         this[node.body.type](node.body, state)
     },
-    BreakStatement(node:BreakStatement, state:State) {
+    BreakStatement(node: BreakStatement, state: State) {
         state.writeKeyword('break')
         if (node.label != null) {
             state.write(' ')
@@ -502,7 +505,7 @@ export const GENERATOR:Generator = {
         }
         state.write(';')
     },
-    ContinueStatement(node:ContinueStatement, state:State) {
+    ContinueStatement(node: ContinueStatement, state: State) {
         state.writeKeyword('continue')
         if (node.label != null) {
             state.write(' ')
@@ -510,16 +513,16 @@ export const GENERATOR:Generator = {
         }
         state.write(';')
     },
-    WithStatement(node:WithStatement, state:State) {
+    WithStatement(node: WithStatement, state: State) {
         state.writeKeyword('with');
         state.write(' (')
         this[node.object.type](node.object, state)
         state.write(') ')
         this[node.body.type](node.body, state)
     },
-    SwitchStatement(node:SwitchStatement, state:State) {
+    SwitchStatement(node: SwitchStatement, state: State) {
         const indent = state.indent.repeat(state.indentLevel++)
-        const { writeComments } = state
+        const {writeComments} = state
         state.indentLevel++
         const caseIndent = indent + state.indent
         const statementIndent = caseIndent + state.indent
@@ -528,8 +531,8 @@ export const GENERATOR:Generator = {
         this[node.discriminant.type](node.discriminant, state)
         state.write(') {')
         state.writeLineEnd();
-        const { cases: occurences } = node
-        const { length: occurencesCount } = occurences
+        const {cases: occurences} = node
+        const {length: occurencesCount} = occurences
         for (let i = 0; i < occurencesCount; i++) {
             const occurence = occurences[i]
             if (writeComments && occurence.comments) {
@@ -548,8 +551,8 @@ export const GENERATOR:Generator = {
                 state.write(':');
                 state.writeLineEnd();
             }
-            const { consequent } = occurence
-            const { length: consequentCount } = consequent
+            const {consequent} = occurence
+            const {length: consequentCount} = consequent
             for (let i = 0; i < consequentCount; i++) {
                 const statement = consequent[i]
                 if (writeComments && statement.comments) {
@@ -563,7 +566,7 @@ export const GENERATOR:Generator = {
         state.indentLevel -= 2
         state.write(indent + '}')
     },
-    ReturnStatement(node:ReturnStatement, state:State) {
+    ReturnStatement(node: ReturnStatement, state: State) {
         state.writeKeyword('return')
         if (node.argument) {
             state.write(' ')
@@ -571,18 +574,18 @@ export const GENERATOR:Generator = {
         }
         state.write(';')
     },
-    ThrowStatement(node:ThrowStatement, state:State) {
+    ThrowStatement(node: ThrowStatement, state: State) {
         state.writeKeyword('throw')
         state.write(' ')
         this[node.argument.type](node.argument, state)
         state.write(';')
     },
-    TryStatement(node:TryStatement, state:State) {
+    TryStatement(node: TryStatement, state: State) {
         state.writeKeyword('try')
         state.write(' ')
         this[node.block.type](node.block, state)
         if (node.handler) {
-            const { handler } = node
+            const {handler} = node
             if (handler!.param == null) {
                 state.write(' ')
                 state.writeKeyword('catch');
@@ -603,14 +606,14 @@ export const GENERATOR:Generator = {
             this[node.finalizer.type](node.finalizer, state)
         }
     },
-    WhileStatement(node:WhileStatement, state:State) {
+    WhileStatement(node: WhileStatement, state: State) {
         state.writeKeyword('while');
         state.write(' (')
         this[node.test.type](node.test, state)
         state.write(') ')
         this[node.body.type](node.body, state)
     },
-    DoWhileStatement(node:DoWhileStatement, state:State) {
+    DoWhileStatement(node: DoWhileStatement, state: State) {
         state.writeKeyword('do');
         state.write(' ')
         this[node.body.type](node.body, state)
@@ -620,11 +623,11 @@ export const GENERATOR:Generator = {
         this[node.test.type](node.test, state)
         state.write(');')
     },
-    ForStatement(node:ForStatement, state:State) {
+    ForStatement(node: ForStatement, state: State) {
         state.writeKeyword('for');
         state.write(' (')
         if (node.init != null) {
-            const { init } = node
+            const {init} = node
             if (init!.type[0] === 'V') {
                 formatVariableDeclaration(state, init)
             } else {
@@ -642,15 +645,15 @@ export const GENERATOR:Generator = {
         state.write(') ')
         this[node.body.type](node.body, state)
     },
-    ForInStatement: (ForInStatement = function (node:ForInStatement, state:State) {
+    ForInStatement: (ForInStatement = function (node: ForInStatement, state: State) {
         state.writeKeyword('for');
         state.write(` `)
-        if((node as any).await) {
+        if ((node as any).await) {
             state.writeKeyword('await');
             state.write(' ');
         }
         state.write(`(`)
-        const { left } = node
+        const {left} = node
         if (left.type[0] === 'V') {
             formatVariableDeclaration(state, left)
         } else {
@@ -665,16 +668,16 @@ export const GENERATOR:Generator = {
         this[node.body.type](node.body, state)
     }),
     ForOfStatement: ForInStatement,
-    DebuggerStatement(node:DebuggerStatement, state:State) {
+    DebuggerStatement(node: DebuggerStatement, state: State) {
         state.writeNode('debugger', node);
         state.write(';')
     },
-    FunctionDeclaration: (FunctionDeclaration = function (node:FunctionDeclaration, state:State) {
-        if(node.async) {
+    FunctionDeclaration: (FunctionDeclaration = function (node: FunctionDeclaration, state: State) {
+        if (node.async) {
             state.writeKeyword('async');
         }
         state.writeNode((node.generator ? 'function*' : 'function'), node);
-        if(node.id) {
+        if (node.id) {
             state.write(' ');
             state.writeNode(node.id.name, node.id);
         }
@@ -683,28 +686,28 @@ export const GENERATOR:Generator = {
         this[node.body.type](node.body, state)
     }),
     FunctionExpression: FunctionDeclaration,
-    VariableDeclaration(node:VariableDeclaration, state:State) {
+    VariableDeclaration(node: VariableDeclaration, state: State) {
         formatVariableDeclaration(state, node)
         state.write(';')
     },
-    VariableDeclarator(node:VariableDeclarator, state:State) {
+    VariableDeclarator(node: VariableDeclarator, state: State) {
         this[node.id.type](node.id, state)
         if (node.init != null) {
             state.write(' = ')
             this[node.init.type](node.init, state)
         }
     },
-    ClassDeclaration(node:ClassDeclaration, state:State) {
+    ClassDeclaration(node: ClassDeclaration, state: State) {
         state.writeNode('class', node);
         state.write(' ');
-        if(node.id) {
+        if (node.id) {
             state.writeNode(node.id.name, node.id);
         }
         if (node.superClass) {
             state.writeKeyword('extends');
             state.write(' ');
-            const { superClass } = node
-            const { type } = superClass
+            const {superClass} = node
+            const {type} = superClass
             const precedence = state.expressionsPrecedence![type]
             if (
                 (type[0] !== 'C' || type[1] !== 'l' || type[5] !== 'E') &&
@@ -722,16 +725,16 @@ export const GENERATOR:Generator = {
         }
         this.ClassBody(node.body, state)
     },
-    ImportDeclaration(node:ImportDeclaration, state:State) {
+    ImportDeclaration(node: ImportDeclaration, state: State) {
         state.writeKeyword('import');
         state.write(' ');
-        const { specifiers } = node
-        const { length } = specifiers
+        const {specifiers} = node
+        const {length} = specifiers
         // TODO: Once babili is fixed, put this after condition
         // https://github.com/babel/babili/issues/430
         let i = 0
         if (length > 0) {
-            for (; i < length; ) {
+            for (; i < length;) {
                 if (i > 0) {
                     state.write(', ')
                 }
@@ -755,9 +758,9 @@ export const GENERATOR:Generator = {
             }
             if (i < length) {
                 state.write('{')
-                for (;;) {
+                for (; ;) {
                     const specifier = specifiers[i]
-                    const { name } = (specifier as any).imported
+                    const {name} = (specifier as any).imported
                     state.writeNode(name, specifier)
                     if (name !== specifier.local.name) {
                         state.write(' ');
@@ -780,13 +783,13 @@ export const GENERATOR:Generator = {
         this.Literal(node.source, state)
         state.write(';')
     },
-    ImportExpression(node:ImportExpression, state:State) {
+    ImportExpression(node: ImportExpression, state: State) {
         state.writeKeyword('import');
         state.write('(')
         this[node.source.type](node.source, state)
         state.write(')')
     },
-    ExportDefaultDeclaration(node:ExportDefaultDeclaration, state:State) {
+    ExportDefaultDeclaration(node: ExportDefaultDeclaration, state: State) {
         state.writeKeyword('export');
         state.write(' ');
         state.writeKeyword('default');
@@ -800,19 +803,19 @@ export const GENERATOR:Generator = {
             state.write(';')
         }
     },
-    ExportNamedDeclaration(node:ExportNamedDeclaration, state:State) {
+    ExportNamedDeclaration(node: ExportNamedDeclaration, state: State) {
         state.writeKeyword('export')
         state.write(' ')
         if (node.declaration) {
             this[node.declaration.type](node.declaration, state)
         } else {
             state.write('{')
-            const { specifiers } = node,
-                { length } = specifiers
+            const {specifiers} = node,
+                {length} = specifiers
             if (length > 0) {
-                for (let i = 0; ; ) {
+                for (let i = 0; ;) {
                     const specifier = specifiers[i]
-                    const { name } = specifier.local
+                    const {name} = specifier.local
                     state.writeNode(name, specifier)
                     if (name !== specifier.exported.name) {
                         state.write(' ');
@@ -837,7 +840,7 @@ export const GENERATOR:Generator = {
             state.write(';')
         }
     },
-    ExportAllDeclaration(node:ExportAllDeclaration, state:State) {
+    ExportAllDeclaration(node: ExportAllDeclaration, state: State) {
         state.writeKeyword('export')
         state.write(' * ')
         if (node.exported != null) {
@@ -851,7 +854,7 @@ export const GENERATOR:Generator = {
         this.Literal(node.source, state)
         state.write(';')
     },
-    MethodDefinition(node:MethodDefinition, state:State) {
+    MethodDefinition(node: MethodDefinition, state: State) {
         if (node.static) {
             state.writeKeyword('static')
             state.write(' ')
@@ -880,15 +883,15 @@ export const GENERATOR:Generator = {
         state.write(' ')
         this[node.value.body.type](node.value.body, state)
     },
-    ClassExpression(node:ClassExpression, state:State) {
+    ClassExpression(node: ClassExpression, state: State) {
         this.ClassDeclaration(node, state)
     },
-    ArrowFunctionExpression(node:ArrowFunctionExpression, state:State) {
-        if(node.async) {
+    ArrowFunctionExpression(node: ArrowFunctionExpression, state: State) {
+        if (node.async) {
             state.writeKeyword('async');
             state.write(' ');
         }
-        const { params } = node
+        const {params} = node
         if (params) {
             // Omit parenthesis if only one named parameter
             if (params.length === 1 && params[0].type[0] === 'I') {
@@ -908,33 +911,33 @@ export const GENERATOR:Generator = {
             this[node.body.type](node.body, state)
         }
     },
-    ThisExpression(node:ThisExpression, state:State) {
+    ThisExpression(node: ThisExpression, state: State) {
         state.writeNode('this', node)
     },
-    Super(node:Super, state:State) {
+    Super(node: Super, state: State) {
         state.writeNode('super', node)
     },
-    RestElement: (RestElement = function (node:RestElement, state:State) {
+    RestElement: (RestElement = function (node: RestElement, state: State) {
         state.writeNode('...', node);
         this[node.argument.type](node.argument, state)
     }),
     SpreadElement: RestElement,
-    YieldExpression(node:YieldExpression, state:State) {
+    YieldExpression(node: YieldExpression, state: State) {
         state.writeKeyword(node.delegate ? 'yield*' : 'yield')
         if (node.argument) {
             state.write(' ')
             this[node.argument.type](node.argument, state)
         }
     },
-    AwaitExpression(node:AwaitExpression, state:State) {
+    AwaitExpression(node: AwaitExpression, state: State) {
         state.writeNode('await', node)
         state.write(' ')
         formatExpression(state, node.argument, node)
     },
-    TemplateLiteral(node:TemplateLiteral, state:State) {
-        const { quasis, expressions } = node
+    TemplateLiteral(node: TemplateLiteral, state: State) {
+        const {quasis, expressions} = node
         state.write('`')
-        const { length } = expressions
+        const {length} = expressions
         for (let i = 0; i < length; i++) {
             const expression = expressions[i]
             const quasi = quasis[i]
@@ -947,19 +950,19 @@ export const GENERATOR:Generator = {
         state.writeNode(quasi.value.raw, quasi)
         state.write('`')
     },
-    TemplateElement(node:TemplateElement, state:State) {
+    TemplateElement(node: TemplateElement, state: State) {
         state.writeNode(node.value.raw, node)
     },
-    TaggedTemplateExpression(node:TaggedTemplateExpression, state:State) {
+    TaggedTemplateExpression(node: TaggedTemplateExpression, state: State) {
         formatExpression(state, node.tag, node)
         this[node.quasi.type](node.quasi, state)
     },
-    ArrayExpression: (ArrayExpression = function (node:ArrayExpression, state:State) {
+    ArrayExpression: (ArrayExpression = function (node: ArrayExpression, state: State) {
         state.write('[')
         if (node.elements.length > 0) {
-            const { elements } = node,
-                { length } = elements
-            for (let i = 0; ; ) {
+            const {elements} = node,
+                {length} = elements
+            for (let i = 0; ;) {
                 const element = elements[i]
                 if (element != null) {
                     this[element.type](element, state)
@@ -977,9 +980,9 @@ export const GENERATOR:Generator = {
         state.write(']')
     }),
     ArrayPattern: ArrayExpression,
-    ObjectExpression(node:ObjectExpression, state:State) {
+    ObjectExpression(node: ObjectExpression, state: State) {
         const indent = state.indent.repeat(state.indentLevel++)
-        const { writeComments } = state
+        const {writeComments} = state
         const propertyIndent = indent + state.indent
         state.write('{')
         if (node.properties.length > 0) {
@@ -988,9 +991,9 @@ export const GENERATOR:Generator = {
                 formatComments(state, node.comments, propertyIndent)
             }
             const comma = ','
-            const { properties } = node,
-                { length } = properties
-            for (let i = 0; ; ) {
+            const {properties} = node,
+                {length} = properties
+            for (let i = 0; ;) {
                 const property = properties[i]
                 if (writeComments && property.comments) {
                     formatComments(state, property.comments, propertyIndent)
@@ -1029,7 +1032,7 @@ export const GENERATOR:Generator = {
         }
         state.indentLevel--
     },
-    Property(node:Property, state:State) {
+    Property(node: Property, state: State) {
         if (node.method || node.kind[0] !== 'i') {
             // Either a method or of kind `set` or `get` (not `init`)
             this.MethodDefinition(node, state)
@@ -1047,7 +1050,7 @@ export const GENERATOR:Generator = {
             this[node.value.type](node.value, state)
         }
     },
-    PropertyDefinition(node:PropertyDefinition, state:State) {
+    PropertyDefinition(node: PropertyDefinition, state: State) {
         if (node.static) {
             state.writeKeyword('static')
             state.write(' ')
@@ -1069,12 +1072,12 @@ export const GENERATOR:Generator = {
         this[node.value.type](node.value, state)
         state.write(';')
     },
-    ObjectPattern(node:ObjectPattern, state:State) {
+    ObjectPattern(node: ObjectPattern, state: State) {
         state.write('{')
         if (node.properties.length > 0) {
-            const { properties } = node,
-                { length } = properties
-            for (let i = 0; ; ) {
+            const {properties} = node,
+                {length} = properties
+            for (let i = 0; ;) {
                 this[properties[i].type](properties[i], state)
                 if (++i < length) {
                     state.write(', ')
@@ -1085,15 +1088,15 @@ export const GENERATOR:Generator = {
         }
         state.write('}')
     },
-    SequenceExpression(node:SequenceExpression, state:State) {
+    SequenceExpression(node: SequenceExpression, state: State) {
         formatSequence(state, node.expressions)
     },
-    UnaryExpression(node:UnaryExpression, state:State) {
+    UnaryExpression(node: UnaryExpression, state: State) {
         if (node.prefix) {
             const {
                 operator,
                 argument,
-                argument: { type },
+                argument: {type},
             } = node
             state.write(operator)
             const needsParentheses = expressionNeedsParenthesis(state, argument, node)
@@ -1122,7 +1125,7 @@ export const GENERATOR:Generator = {
             state.write(node.operator)
         }
     },
-    UpdateExpression(node:UpdateExpression, state:State) {
+    UpdateExpression(node: UpdateExpression, state: State) {
         // Always applied to identifiers or members, no parenthesis check needed
         if (node.prefix) {
             state.write(node.operator)
@@ -1132,17 +1135,17 @@ export const GENERATOR:Generator = {
             state.write(node.operator)
         }
     },
-    AssignmentExpression(node:AssignmentExpression, state:State) {
+    AssignmentExpression(node: AssignmentExpression, state: State) {
         this[node.left.type](node.left, state)
         state.write(' ' + node.operator + ' ')
         this[node.right.type](node.right, state)
     },
-    AssignmentPattern(node:AssignmentPattern, state:State) {
+    AssignmentPattern(node: AssignmentPattern, state: State) {
         this[node.left.type](node.left, state)
         state.write(' = ')
         this[node.right.type](node.right, state)
     },
-    BinaryExpression: (BinaryExpression = function (node:BinaryExpression, state:State) {
+    BinaryExpression: (BinaryExpression = function (node: BinaryExpression, state: State) {
         const isIn = node.operator === 'in'
         if (isIn) {
             // Avoids confusion in `for` loops initializers
@@ -1156,8 +1159,8 @@ export const GENERATOR:Generator = {
         }
     }),
     LogicalExpression: BinaryExpression,
-    ConditionalExpression(node:ConditionalExpression, state:State) {
-        const { test } = node
+    ConditionalExpression(node: ConditionalExpression, state: State) {
+        const {test} = node
         const precedence = state.expressionsPrecedence![test.type]
         if (
             precedence === NEEDS_PARENTHESES ||
@@ -1174,7 +1177,7 @@ export const GENERATOR:Generator = {
         state.write(' : ')
         this[node.alternate.type](node.alternate, state)
     },
-    NewExpression(node:NewExpression, state:State) {
+    NewExpression(node: NewExpression, state: State) {
         state.writeKeyword('new')
         state.write(' ')
         const precedence = state.expressionsPrecedence![node.callee.type]
@@ -1191,7 +1194,7 @@ export const GENERATOR:Generator = {
         }
         formatSequence(state, node['arguments'])
     },
-    CallExpression(node:CallExpression, state:State) {
+    CallExpression(node: CallExpression, state: State) {
         const precedence = state.expressionsPrecedence[node.callee.type]
         if (
             precedence === NEEDS_PARENTHESES ||
@@ -1208,10 +1211,10 @@ export const GENERATOR:Generator = {
         }
         formatSequence(state, node['arguments'])
     },
-    ChainExpression(node:ChainExpression, state:State) {
+    ChainExpression(node: ChainExpression, state: State) {
         this[node.expression.type](node.expression, state)
     },
-    MemberExpression(node:MemberExpression, state:State) {
+    MemberExpression(node: MemberExpression, state: State) {
         const precedence = state.expressionsPrecedence![node.object.type]
         if (
             precedence === NEEDS_PARENTHESES ||
@@ -1239,19 +1242,19 @@ export const GENERATOR:Generator = {
             this[node.property.type](node.property, state)
         }
     },
-    MetaProperty(node:MetaProperty, state:State) {
+    MetaProperty(node: MetaProperty, state: State) {
         state.writeNode(node.meta.name, node.meta);
         state.write('.');
         state.writeNode(node.property.name, node.property);
     },
-    Identifier(node:Identifier, state:State) {
+    Identifier(node: Identifier, state: State) {
         state.writeNode(node.name, node)
     },
-    PrivateIdentifier(node:PrivateIdentifier, state:State) {
+    PrivateIdentifier(node: PrivateIdentifier, state: State) {
         state.writeKeyword('#');
         state.writeNode(`${node.name}`, node);
     },
-    Literal(node:Literal, state:State) {
+    Literal(node: Literal, state: State) {
         if (node.raw != null) {
             // Non-standard property
             state.writeNode(node.raw, node)
@@ -1263,13 +1266,13 @@ export const GENERATOR:Generator = {
             state.writeNode(stringify(node.value), node)
         }
     },
-    RegExpLiteral(node:RegExpLiteral, state:State) {
-        const { regex } = node
+    RegExpLiteral(node: RegExpLiteral, state: State) {
+        const {regex} = node
         state.writeNode(`/${regex.pattern}/${regex.flags}`, node)
     },
 }
 
-const EMPTY_OBJECT:Options = {}
+const EMPTY_OBJECT: Options = {}
 
 /*
 DEPRECATED: Alternate export of `GENERATOR`.
@@ -1285,7 +1288,8 @@ export class State {
     column?: number;
     generator: Generator;
     expressionsPrecedence: ExpressionsPrecedenceOptions;
-    constructor(options:Options|null) {
+
+    constructor(options: Options | null) {
         const setup = options == null ? EMPTY_OBJECT : options
         this.output = ''
         this.generator = setup.generator != undefined ? setup.generator : GENERATOR
@@ -1298,33 +1302,33 @@ export class State {
         this.indentLevel =
             setup.startingIndentLevel != null ? setup.startingIndentLevel : 0
         this.writeComments = setup.comments ? setup.comments : false
-        if(setup.write) {
+        if (setup.write) {
             this.write = (code) => this.output += setup.write!(code);
         }
-        if(setup.writeKeyword) {
+        if (setup.writeKeyword) {
             this.writeKeyword = (code) => this.output += setup.writeKeyword!(code);
         }
-        if(setup.writeNode) {
+        if (setup.writeNode) {
             this.writeNode = (code, node) => this.output += setup.writeNode!(code, node);
         }
-        if(setup.writeLineEnd) {
+        if (setup.writeLineEnd) {
             this.writeLineEnd = () => this.output += setup.writeLineEnd!();
         }
     }
 
-    write = (code: string):void => {
+    write = (code: string): void => {
         this.output += code
     }
 
-    writeKeyword = (code: string):void => {
+    writeKeyword = (code: string): void => {
         this.output += code
     }
 
-    writeNode = (code: string, node?: EstreeNode):void => {
+    writeNode = (code: string, node?: EstreeNode): void => {
         this.output += code
     }
 
-    writeLineEnd = ():void => {
+    writeLineEnd = (): void => {
         this.output += '\n';
     }
 
@@ -1333,7 +1337,7 @@ export class State {
     }
 }
 
-export function generate(node:EstreeNode, options?:Options) {
+export function generate(node: EstreeNode, options?: Options) {
     /*
     Returns a string representing the rendered code of the provided AST `node`.
     The `options` are:

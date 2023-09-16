@@ -1,8 +1,8 @@
-import {cloneNode} from '../src/traverse';
 import * as esprima from 'esprima';
 import * as ESTree from 'estree'
 import * as acorn from "acorn";
 import {expect} from "chai";
+import {cloneNode} from "../src/util";
 
 describe('CloneNode', () => {
     it('with parent', () => {

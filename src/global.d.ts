@@ -16,4 +16,5 @@ declare global {
 
 type EsNode = Node;
 
+type AstTransformer = (node: EsNode) => void;
 

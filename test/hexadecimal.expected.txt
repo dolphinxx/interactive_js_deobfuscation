@@ -1,0 +1,3 @@
+var a = 'return (function() ' + '{}.constructor("return this")( )' + ');';
+var b = 291;
+var c = '你好';

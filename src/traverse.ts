@@ -1,72 +1,25 @@
 import * as ESTree from 'estree';
+import {MemberExpression} from 'estree';
 // @ts-ignore
 import * as esprima from 'esprima';
 // @ts-ignore
 import {Controller, replace, traverse} from 'estraverse';
 import {EsNode} from "./global";
 import * as astring from './astring';
-import {copy} from "./copy";
 import * as acorn from "acorn";
-import {MemberExpression} from "estree";
-
-/**
- * find the closest parent that matches type
- * @param node
- * @param type
- */
-export function closest<T extends ESTree.Node>(node: ESTree.Node, type: string | string[]): T | null {
-    if (!node.parent) {
-        return null;
-    }
-    if (type instanceof Array && type.indexOf(node.parent.type) !== -1) {
-        return node.parent as T;
-    }
-    if (node.parent.type === type) {
-        return node.parent as T;
-    }
-    return closest(node.parent, type);
-}
-
-export function closestBlock(node: EsNode): EsNode | null {
-    return closest(node, [esprima.Syntax.Program, esprima.Syntax.BlockStatement, esprima.Syntax.SwitchCase]);
-}
-
-export function applyAstParent(node: ESTree.Node) {
-    traverse(node, {
-        enter(node: EsNode, parent) {
-            node.parent = parent;
-        }
-    });
-}
-
-export function findIdentifierUsage(id: ESTree.Identifier): ESTree.Identifier[] {
-    const root = closest(id, [esprima.Syntax.BlockStatement, esprima.Syntax.Program]);
-    if (!root) {
-        throw new Error(`closest block not found for ${id}`);
-    }
-    const idName = id.name;
-    const found: ESTree.Identifier[] = [];
-    let start = false;
-    traverse(root, {
-        enter(n: EsNode) {
-            if (n === id) {
-                start = true;
-                return;
-            }
-            if (n.type === esprima.Syntax.Identifier && (n as ESTree.Identifier).name === idName) {
-                found.push(n as ESTree.Identifier);
-            }
-        }
-    });
-    return found;
-}
-
-export function cloneNode(node: EsNode, parent: EsNode | null): EsNode {
-    const result = copy(node, {excludes: ['parent']});
-    applyAstParent(result);
-    result.parent = parent;
-    return result;
-}
+import {
+    applyAstParent,
+    arithmetic,
+    cloneNode,
+    closestBlock, getRemovableParentNode,
+    isEmptyBlockOrStatement,
+    isIdentifierIdentical,
+    isLiteral,
+    isLiteralEquals,
+    isNameEquals,
+    isStringLiteral, newIdentifier, newLiteral, newThrow, removeIdentifierIfUnused,
+    replaceIdentifiers,
+} from "./util";
 
 export function evalFunction(node: EsNode): EsNode {
     let code = astring.generate(node);
@@ -277,101 +230,13 @@ export function inlineReference(actual: EsNode, ref: EsNode, root: EsNode) {
     });
 }
 
-export function isIdentifierReferenced(node: EsNode, root: EsNode): boolean {
-    const name = (node as ESTree.Identifier).name;
-    let found = false;
-    traverse(root, {
-        enter(n: EsNode) {
-            if (n !== node && n.type === esprima.Syntax.Identifier && (n as ESTree.Identifier).name === name) {
-                found = true;
-                (this as Controller).break();
-            }
-        }
-    });
-    return found;
-}
-
-export function getRemovableParentNode(node: EsNode): EsNode {
-    if (node.parent?.type === esprima.Syntax.VariableDeclarator) {
-        if (node.parent.parent?.type === esprima.Syntax.VariableDeclaration && (node.parent.parent as ESTree.VariableDeclaration).declarations.length === 1) {
-            return node.parent.parent;
-        }
-        return node.parent;
-    }
-    return node;
-}
-
-export function removeVariableIfUnused(node: EsNode) {
-    const root = closestBlock(node);
-    if (isIdentifierReferenced(node, root!)) {
-        globalThis.logDebug('removeVariableIfUnused failed');
-        return;
-    }
-    const toRemove = getRemovableParentNode(node);
-    let done = false;
-    replace(root!, {
-        enter(n: EsNode) {
-            if (done) {
-                (this as Controller).break();
-                return;
-            }
-            if (n === toRemove) {
-                done = true;
-                (this as Controller).remove();
-                globalThis.logDebug('removeVariableIfUnused', n);
-            }
-        }
-    });
-}
-
 export function removeFunctionIfUnused(node: EsNode) {
     // TODO
-}
-
-export function newLiteral(val: any, parent: EsNode | null): ESTree.Literal {
-    // @ts-ignore
-    let result: EsNode = (acorn.parse(JSON.stringify(val), {ecmaVersion: 'latest'}) as ESTree.Program).body[0];
-    if (result.type === esprima.Syntax.ExpressionStatement) {
-        result = (result as ESTree.ExpressionStatement).expression as ESTree.Literal;
-    }
-    result.parent = parent;
-    return result as ESTree.Literal;
-}
-
-export function newIdentifier(name: string, parent: EsNode | null): ESTree.Identifier {
-    return {
-        type: esprima.Syntax.Identifier,
-        name,
-        parent,
-    };
-}
-
-export function newThrow(msg: string, parent: EsNode | null): ESTree.ThrowStatement {
-    const arg = newLiteral(msg, null);
-    const result: ESTree.ThrowStatement = {
-        type: esprima.Syntax.ThrowStatement,
-        parent,
-        argument: arg
-    };
-    arg.parent = result;
-    return result;
 }
 
 export function evalConstantExpressions(root: EsNode) {
     replace(root, {
         enter(n: EsNode) {
-            // write hexadecimal number and string to readable form
-            if (n.type === esprima.Syntax.Literal) {
-                const type = typeof (n as ESTree.Literal).value;
-                if(type === 'number') {
-                    (n as ESTree.Literal).raw = (n as ESTree.Literal).value.toString();
-                    return;
-                }
-                if(type === 'string') {
-                    (n as ESTree.Literal).raw = (n as ESTree.Literal).raw.toString();
-                    return;
-                }
-            }
             if (n.type === esprima.Syntax.UnaryExpression) {
                 const arg = (n as ESTree.UnaryExpression).argument;
                 if ((n as ESTree.UnaryExpression).operator === '!') {
@@ -444,125 +309,77 @@ export function evalConstantExpressions(root: EsNode) {
     })
 }
 
-export function arithmetic(left: any, right: any, operator: ESTree.BinaryOperator) {
-    switch (operator) {
-        case "==":
-            return left == right;
-        case "!=":
-            return left != right;
-        case "===":
-            return left === right;
-        case "!==":
-            return left !== right;
-        case "<":
-            return left < right;
-        case "<=":
-            return left <= right;
-        case ">":
-            return left > right;
-        case ">=":
-            return left >= right;
-        case "<<":
-            return left << right;
-        case ">>":
-            return left >> right;
-        case ">>>":
-            return left >>> right;
-        case "+":
-            return left + right;
-        case "-":
-            return left - right;
-        case "*":
-            return left * right;
-        case "/":
-            return left / right;
-        case "%":
-            return left % right;
-        case "**":
-            return left ** right;
-        case "|":
-            return left | right;
-        case "^":
-            return left ^ right;
-        case "&":
-            return left & right;
-        case "in":
-            return left in right;
-        case "instanceof":
-            return left instanceof right;
-        default:
-            throw 'unknown operator:' + operator;
-    }
-}
 
-export function evalObfuscatedString(evalCode: string, root: EsNode) {
-    // @ts-ignore
-    const fn = ((acorn.parse(evalCode, {ecmaVersion: 'latest'}) as ESTree.Program).body.find(_ => _.type === esprima.Syntax.FunctionDeclaration) as ESTree.FunctionDeclaration).id!.name;
-    if (!fn) {
-        globalThis.logDebug(`evalObfuscatedString fn not found`);
-        return;
-    }
-    globalThis.logDebug(`evalObfuscatedString fn=${fn}`);
-    const func = eval(`(function () {
-        ${evalCode};
-        return ${fn}
-    }())`);
+// TODO: simplify apply call
 
-    // collect refers to fn
-    const alias: string[] = [fn];
-    const aliasNodes: EsNode[] = [];
-    traverse(root, {
-        enter(n: EsNode) {
-            if (n.type === esprima.Syntax.AssignmentExpression) {
-                const ass = n as ESTree.AssignmentExpression;
-                if (ass.right.type === esprima.Syntax.Identifier && ass.left.type === esprima.Syntax.Identifier) {
-                    const assRight = ass.right as ESTree.Identifier;
-                    const assLeft = ass.left as ESTree.Identifier;
-                    if (alias.indexOf(assRight.name) !== -1) {
-                        alias.push(assLeft.name);
-                        aliasNodes.push(getRemovableParentNode(assLeft));
-                    }
-                }
-                return;
-            }
-            if (n.type === esprima.Syntax.VariableDeclarator) {
-                const dec = n as ESTree.VariableDeclarator;
-                if (dec.id.type === esprima.Syntax.Identifier && dec.init?.type === esprima.Syntax.Identifier) {
-                    const decLeft = dec.id as ESTree.Identifier;
-                    const decRight = dec.init as ESTree.Identifier;
-                    if (alias.indexOf(decRight.name) !== -1) {
-                        alias.push(decLeft.name);
-                        aliasNodes.push(getRemovableParentNode(decLeft));
-                    }
-                }
-            }
-        }
-    });
-
-    replace(root, {
-        leave(n: EsNode) {
-            if (n.type === esprima.Syntax.CallExpression) {
-                const c = n as ESTree.CallExpression;
-                if (c.callee.type === esprima.Syntax.Identifier && c.arguments.length === 2 && c.arguments[0].type === esprima.Syntax.Literal && c.arguments[1].type === esprima.Syntax.Literal) {
-                    const callee = c.callee as ESTree.Identifier;
-                    if (alias.indexOf(callee.name) !== -1) {
-                        const val = func((c.arguments[0] as ESTree.Literal).value, (c.arguments[1] as ESTree.Literal).value);
-                        globalThis.logDebug('evalObfuscatedString', n, val);
-                        return newLiteral(val, n.parent);
-                    }
-                }
-            }
-        }
-    });
-    replace(root, {
-        enter(n: EsNode) {
-            if (aliasNodes.indexOf(n) !== -1) {
-                (this as Controller).remove();
-                globalThis.logDebug('evalObfuscatedString remove variable', n);
-            }
-        }
-    });
-}
+// export function evalObfuscatedString(evalCode: string | null, root: EsNode) {
+//     // @ts-ignore
+//     const fn = ((acorn.parse(evalCode, {ecmaVersion: 'latest'}) as ESTree.Program).body.find(_ => _.type === esprima.Syntax.FunctionDeclaration) as ESTree.FunctionDeclaration).id!.name;
+//     if (!fn) {
+//         globalThis.logDebug(`evalObfuscatedString fn not found`);
+//         return;
+//     }
+//     globalThis.logDebug(`evalObfuscatedString fn=${fn}`);
+//     const func = eval(`(function () {
+//         ${evalCode};
+//         return ${fn}
+//     }())`);
+//
+//     // collect refers to fn
+//     const alias: string[] = [fn];
+//     const aliasNodes: EsNode[] = [];
+//     traverse(root, {
+//         enter(n: EsNode) {
+//             if (n.type === esprima.Syntax.AssignmentExpression) {
+//                 const ass = n as ESTree.AssignmentExpression;
+//                 if (ass.right.type === esprima.Syntax.Identifier && ass.left.type === esprima.Syntax.Identifier) {
+//                     const assRight = ass.right as ESTree.Identifier;
+//                     const assLeft = ass.left as ESTree.Identifier;
+//                     if (alias.indexOf(assRight.name) !== -1) {
+//                         alias.push(assLeft.name);
+//                         aliasNodes.push(getRemovableParentNode(assLeft));
+//                     }
+//                 }
+//                 return;
+//             }
+//             if (n.type === esprima.Syntax.VariableDeclarator) {
+//                 const dec = n as ESTree.VariableDeclarator;
+//                 if (dec.id.type === esprima.Syntax.Identifier && dec.init?.type === esprima.Syntax.Identifier) {
+//                     const decLeft = dec.id as ESTree.Identifier;
+//                     const decRight = dec.init as ESTree.Identifier;
+//                     if (alias.indexOf(decRight.name) !== -1) {
+//                         alias.push(decLeft.name);
+//                         aliasNodes.push(getRemovableParentNode(decLeft));
+//                     }
+//                 }
+//             }
+//         }
+//     });
+//
+//     replace(root, {
+//         leave(n: EsNode) {
+//             if (n.type === esprima.Syntax.CallExpression) {
+//                 const c = n as ESTree.CallExpression;
+//                 if (c.callee.type === esprima.Syntax.Identifier && c.arguments.length === 2 && c.arguments[0].type === esprima.Syntax.Literal && c.arguments[1].type === esprima.Syntax.Literal) {
+//                     const callee = c.callee as ESTree.Identifier;
+//                     if (alias.indexOf(callee.name) !== -1) {
+//                         const val = func((c.arguments[0] as ESTree.Literal).value, (c.arguments[1] as ESTree.Literal).value);
+//                         globalThis.logDebug('evalObfuscatedString', n, val);
+//                         return newLiteral(val, n.parent);
+//                     }
+//                 }
+//             }
+//         }
+//     });
+//     replace(root, {
+//         enter(n: EsNode) {
+//             if (aliasNodes.indexOf(n) !== -1) {
+//                 (this as Controller).remove();
+//                 globalThis.logDebug('evalObfuscatedString remove variable', n);
+//             }
+//         }
+//     });
+// }
 
 export function flattenHashedMember(root: EsNode) {
     const objs: ESTree.Identifier[] = [];
@@ -631,45 +448,8 @@ export function flattenHashedMember(root: EsNode) {
     }
     // remove obj declaration if unused
     for (const objId of objs) {
-        removeVariableIfUnused(objId);
+        removeIdentifierIfUnused(objId);
     }
-}
-
-export function replaceIdentifiers(root: EsNode, map: { [key: string]: EsNode }) {
-    replace(root, {
-        leave(n: EsNode) {
-            if (n.type === esprima.Syntax.Identifier && map.hasOwnProperty((n as ESTree.Identifier).name)) {
-                return cloneNode(map[(n as ESTree.Identifier).name], n.parent);
-            }
-        }
-    })
-}
-
-export function isLiteral(node: EsNode | null): boolean {
-    return node != null && node.type === esprima.Syntax.Literal;
-}
-
-export function isStringLiteral(node: EsNode | null): boolean {
-    return node != null && node.type === esprima.Syntax.Literal && typeof (node as ESTree.Literal).value === 'string';
-}
-
-export function isIdentifierIdentical(node: EsNode | null, name: string): boolean {
-    return node != null && node.type === esprima.Syntax.Identifier && (node as ESTree.Identifier).name === name;
-}
-
-export function isEmptyBlockOrStatement(root: EsNode): boolean {
-    if (root.type === esprima.Syntax.EmptyStatement) {
-        return true;
-    }
-    if (root.type === esprima.Syntax.BlockStatement) {
-        for (const b of (root as ESTree.BlockStatement).body) {
-            if (!isEmptyBlockOrStatement(b)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
 }
 
 export function simplify(root: EsNode) {
@@ -770,34 +550,6 @@ export function computedToDot(root: EsNode) {
             }
         }
     });
-}
-
-/**
- * checks whether the name of an Identifier or the value of a Literal is equal to `name`
- * @param name
- * @param node
- */
-function isNameEquals(name: string, node?: EsNode | null): boolean {
-    if (!node) {
-        return false;
-    }
-    if (node.type === esprima.Syntax.Identifier) {
-        return (node as ESTree.Identifier).name === name;
-    }
-    if (node.type === esprima.Syntax.Literal) {
-        return (node as ESTree.Literal).value === name;
-    }
-    return false;
-}
-
-function isLiteralEquals(value: any, node?: EsNode | null): boolean {
-    if (!node) {
-        return false;
-    }
-    if (node.type !== esprima.Syntax.Literal) {
-        return false;
-    }
-    return (node as ESTree.Literal).value === value;
 }
 
 /**

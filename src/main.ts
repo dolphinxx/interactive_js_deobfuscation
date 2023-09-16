@@ -14,13 +14,20 @@ import './main.scss';
 import {EsNode} from "./global";
 import * as diff from 'diff';
 import {
-    applyAstParent, closestBlock, computedToDot, evalConstantExpressions, evalObfuscatedString,
-    findIdentifierUsage, flattenHashedMember,
+    computedToDot,
+    evalConstantExpressions,
+    flattenHashedMember,
     inlineExpression,
     inlineFunction,
-    inlineIdentifier, inlineIdentifierReference,
-    inlineReference, removeFunctionIfUnused, removeVariableIfUnused, simplify, unshuffleWhileSwitch
+    inlineIdentifier,
+    inlineIdentifierReference,
+    inlineReference,
+    removeFunctionIfUnused,
+    simplify,
+    unshuffleWhileSwitch
 } from "./traverse";
+import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
+import {stringArrayTransformations} from "./transform";
 
 globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 
@@ -182,10 +189,8 @@ class Editor {
         });
         removeBtn.addEventListener('click', () => {
             const node = this._nodeIdHolder.node(this._active?.getAttribute('data-nid')!) as ESTree.Identifier;
-            if (node.parent?.type === esprima.Syntax.VariableDeclarator) {
-                removeVariableIfUnused((node.parent as ESTree.VariableDeclarator).id);
-            } else if (node.parent?.type === esprima.Syntax.FunctionDeclaration && (node.parent as ESTree.FunctionDeclaration).id === node) {
-                removeFunctionIfUnused(node);
+            if (isIdOfParent(node)) {
+                removeIdentifierIfUnused((node.parent as ESTree.VariableDeclarator).id);
             } else {
                 return;
             }
@@ -218,12 +223,8 @@ class Editor {
             evalConstantExpressions(this.program!);
             this.renderAst(this.program!);
         });
-        this.root.querySelector('#evalObfuscatedStringBtn')?.addEventListener('click', () => {
-            if (!evalInput.value) {
-                alert('no eval input');
-                return;
-            }
-            evalObfuscatedString(evalInput.value, this.program!);
+        this.root.querySelector('#stringArrayTransformBtn')?.addEventListener('click', () => {
+            stringArrayTransformations(this.program!);
             this.renderAst(this.program!);
         });
         this.root.querySelector('#flattenHashCallBtn')?.addEventListener('click', () => {

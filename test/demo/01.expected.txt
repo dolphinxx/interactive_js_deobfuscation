@@ -1,11 +1,11 @@
 var version_ = 'jsjiami.com.v7';
-var wweebb_container = $("#wweebb"), parse_data = $('meta[name=\x22urldata\x22]').attr('content');
+var wweebb_container = $("#wweebb"), parse_data = $('meta[name="urldata"]').attr('content');
 parse_data == "2689a9a056148f5cb3ba8451" ? wweebb_container.append($("<div>").attr('id', "loader2")) : (wweebb_container.append($("<div>").attr('id', 'loader')), wweebb_container.append($('<div>').attr('id', 'load_background')));
 (function() {
     var O0Q$O$ = window;
     O0Q$O$.setInterval(QQOQ0QQ, 2000);
 })();
-var posturl_data = btoa(parse_data), request_data = btoa(window.location.href + "###" + $('meta[name=\x22viewdata\x22]').attr("content")), iframe = document.createElement("iframe");
+var posturl_data = btoa(parse_data), request_data = btoa(window.location.href + "###" + $('meta[name="viewdata"]').attr("content")), iframe = document.createElement("iframe");
 (detectDevTools(), $(document).ready(function() {
     $.ajax({
         'url': "data.php",
