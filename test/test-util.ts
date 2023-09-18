@@ -7,14 +7,13 @@ import {AstTransformer, EsNode} from "../src/global";
 import {
     computedToDot,
     evalConstantExpressions,
-    simplify
 } from "../src/traverse";
 import {applyAstParent} from "../src/util";
 import {join} from "path";
 import {readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
-import {hexadecimal, stringArrayTransformations} from "../src/transform";
+import {hexadecimal, stringArrayTransformations, simplify} from "../src/transform";
 import {Program} from 'estree';
 
 // globalThis.logDebug = (...msg:string[]) => console.log(...msg);

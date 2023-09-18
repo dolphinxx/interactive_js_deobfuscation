@@ -21,10 +21,9 @@ import {
     inlineIdentifier,
     inlineIdentifierReference,
     inlineReference,
-    simplify,
 } from "./traverse";
 import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
-import {controlFlowFlattening, stringArrayTransformations} from "./transform";
+import {controlFlowFlattening, stringArrayTransformations, simplify} from "./transform";
 
 globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 

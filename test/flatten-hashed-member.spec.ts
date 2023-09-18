@@ -45,8 +45,8 @@ const shouldSkip = {
 const ss = shouldSkip["b"](1, 2);
 const c = "aa";
 const d = 1;
-const e = 1 + 2;
-const f = 4 != 3;
+const e = 3;
+const f = true;
 function foo(a) {
     console.log(a);
 }
@@ -79,8 +79,8 @@ const hh = hash3["c"];
 var b = 2;`;
         const expected = `var a = 1;
 const c = "aa";
-const d = 1 + 2;
-const e = "Hello" + ("aaa" + "aa");
+const d = 3;
+const e = "Helloaaaaa";
 const hash3 = {
     "a": 1,
     "b": "ff"

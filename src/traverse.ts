@@ -10,11 +10,7 @@ import {
     arithmetic,
     cloneNode,
     closestBlock,
-    isEmptyBlockOrStatement,
-    isIdentifierIdentical,
-    isLiteral,
-    isStringLiteral, newIdentifier, newLiteral, newThrow, removeIdentifierIfUnused,
-    replaceIdentifiers,
+    isStringLiteral, newIdentifier, newLiteral
 } from "./util";
 
 export function evalFunction(node: EsNode): EsNode {
@@ -300,93 +296,6 @@ export function evalConstantExpressions(root: EsNode) {
                     globalThis.logDebug('evalConstantExpressions', n, value);
                     return value;
                 }
-            }
-        }
-    })
-}
-
-
-// TODO: simplify apply call
-
-export function simplify(root: EsNode) {
-    // constant condition
-    replace(root, {
-        leave(n: EsNode) {
-            // if
-            if (n.type === esprima.Syntax.IfStatement) {
-                const stmt = n as ESTree.IfStatement;
-                if (isLiteral(stmt.test)) {
-                    const testVal = (stmt.test as ESTree.Literal).value;
-                    if (testVal) {// true
-                        return cloneNode(stmt.consequent, n.parent);
-                    } else {// false
-                        if (stmt.alternate) {
-                            return cloneNode(stmt.alternate, n.parent);
-                        }
-                        globalThis.logDebug('simplify', n);
-                        (this as Controller).remove();
-                        return;
-                    }
-                }
-                return;
-            }
-            // while
-            if (n.type === esprima.Syntax.WhileStatement) {
-                const stmt = n as ESTree.WhileStatement;
-                if (isLiteral(stmt.test)) {
-                    const testVal = (stmt.test as ESTree.Literal).value;
-                    if (testVal) {// true
-                        // empty body
-                        if (isEmptyBlockOrStatement(stmt.body)) {
-                            globalThis.logDebug('simplify', n);
-                            // should never enter, so throw an exception
-                            return newThrow('infinity loop', n.parent);
-                        }
-                    } else {// always false
-                        globalThis.logDebug('simplify', n);
-                        (this as Controller).remove();
-                    }
-                }
-                return;
-            }
-            // do while
-            if (n.type === esprima.Syntax.DoWhileStatement) {
-                const stmt = n as ESTree.DoWhileStatement;
-                if (isLiteral(stmt.test)) {
-                    const testVal = (stmt.test as ESTree.Literal).value;
-                    if (testVal) {// true
-                        // empty body
-                        if (isEmptyBlockOrStatement(stmt.body)) {
-                            globalThis.logDebug('simplify', n);
-                            // should never enter, so throw an exception
-                            return newThrow('infinity loop', n.parent);
-                        }
-                    } else {// always false
-                        globalThis.logDebug('simplify', n);
-                        // empty body
-                        if (isEmptyBlockOrStatement(stmt.body)) {
-                            (this as Controller).remove();
-                            return;
-                        }
-                        // run single time
-                        return cloneNode(stmt.body, n.parent);
-                    }
-                }
-                return;
-            }
-            // conditional
-            if (n.type === esprima.Syntax.ConditionalExpression) {
-                const stmt = n as ESTree.ConditionalExpression;
-                if (isLiteral(stmt.test)) {
-                    const testVal = (stmt.test as ESTree.Literal).value;
-                    globalThis.logDebug('simplify', n);
-                    if (testVal) {// true
-                        return cloneNode(stmt.consequent, n.parent);
-                    } else {// false
-                        return cloneNode(stmt.alternate, n.parent);
-                    }
-                }
-                return;
             }
         }
     })

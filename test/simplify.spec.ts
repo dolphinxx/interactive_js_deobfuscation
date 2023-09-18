@@ -1,4 +1,4 @@
-import {simplify} from "../src/traverse";
+import {simplify} from "../src/transform";
 import {runTest} from "./test-util";
 
 const run = (input: string, expected: string, msg?: string) => runTest(input, expected, simplify, msg);
