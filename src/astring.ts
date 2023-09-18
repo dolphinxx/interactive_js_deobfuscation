@@ -704,6 +704,7 @@ export const GENERATOR: Generator = {
             state.writeNode(node.id.name, node.id);
         }
         if (node.superClass) {
+            state.write(' ');
             state.writeKeyword('extends');
             state.write(' ');
             const {superClass} = node
