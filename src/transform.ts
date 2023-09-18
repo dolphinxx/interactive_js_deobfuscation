@@ -245,6 +245,11 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
                         return;
                     }
                     if (Object.hasOwnProperty.call(h.props, propName)) {
+                        const propVal = h.props[propName];
+                        if(Object.hasOwnProperty.call(propVal, 'rt')) {
+                            // passed as function, handle it next time
+                            return;
+                        }
                         modified = true;
                         return cloneNode(h.props[propName] as EsNode, n.parent);
                     }
