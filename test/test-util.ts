@@ -44,7 +44,7 @@ export function prepareAst(code: string): Program {
 
 const expectedLabel = '// @@expected';
 
-function cleanExpected(raw: string): string {
+export function cleanExpected(raw: string): string {
     const pos = raw.indexOf(expectedLabel);
     if (pos !== -1) {
         raw = raw.substring(pos + expectedLabel.length);

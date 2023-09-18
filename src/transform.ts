@@ -25,7 +25,12 @@ import {
     replaceIdentifiers,
     unary
 } from "./util";
-import {findStringArrayDecodeFunction, findStringArrayFunction, findStringArrayRotateExpr} from "./string-array-helper";
+import {
+    findStringArrayDecodeFunction,
+    findStringArrayFunction,
+    findStringArrayFunctionWrappers,
+    findStringArrayRotateExpr
+} from "./string-array-helper";
 
 export function stringArrayTransformations(root: EsNode) {
     if (!(root as { body?: ESTree.Statement[] })?.body || !((root as { body?: ESTree.Statement[] })?.body instanceof Array)) {
@@ -87,6 +92,7 @@ export function stringArrayTransformations(root: EsNode) {
             break;
         }
     }
+    console.log(astring.generate(root));
 
     // collect refers to the decodeFn
     const alias: string[] = [decodeFnId];
@@ -156,7 +162,6 @@ type ParamsAndReturn = {
  */
 export function stringArrayCallsTransform(root: EsNode):boolean {
     // Find the map
-    // All the property values should be numeric literals.
     const hashes: { scope: EsNode, node: ESTree.VariableDeclarator, id: string, props: { [key: string]: EsNode | ParamsAndReturn } }[] = [];
     traverse(root, {
         enter(n: EsNode) {
@@ -291,76 +296,8 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
  * @param root the root node
  */
 function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode):boolean {
-    // The string array decoding is wrapped by a function call.
-    // the callee function contains two parameters.
-    // And the function body contains a single ReturnStatement whose argument is a CallExpression, and the callee is the string array decoding function.
-    // The arguments of the CallExpression match the parameters of the function.
-    // The arguments may have an additional arithmetic operation.
-
     // Collect the functions
-    const functions: ESTree.FunctionDeclaration[] = [];
-    traverse(root, {
-        enter(n: EsNode) {
-            if (n.type !== esprima.Syntax.FunctionDeclaration || (n as ESTree.FunctionDeclaration).id?.type !== esprima.Syntax.Identifier || (n as ESTree.FunctionDeclaration).params.length !== 2 || !(n as ESTree.FunctionDeclaration).params.every(p => p.type === esprima.Syntax.Identifier) || (n as ESTree.FunctionDeclaration).body.body.length !== 1) {
-                return;
-            }
-            const stmt = (n as ESTree.FunctionDeclaration).body.body[0];
-            if (stmt.type !== esprima.Syntax.ReturnStatement) {
-                return;
-            }
-            if (stmt.argument?.type !== esprima.Syntax.CallExpression) {
-                return;
-            }
-            if (!isIdentifierIdentical(stmt.argument.callee, decodeFnId)) {
-                return;
-            }
-            if (stmt.argument.arguments.length !== 2) {
-                return;
-            }
-            const params = (n as ESTree.FunctionDeclaration).params.map(p => (p as ESTree.Identifier).name);
-            // each argument matches the parameter of the function
-            if (!stmt.argument.arguments.every((a) => {
-                if (a.type === esprima.Syntax.Identifier) {
-                    const pos = params.indexOf(a.name);
-                    if (pos === -1) {
-                        return false;
-                    }
-                    // params can only be used once.
-                    params.splice(pos, 1);
-                    return true;
-                }
-                // _0x3d7e3a - 0x217, or _0x3d7e3a - -0x217
-                if (a.type === esprima.Syntax.BinaryExpression) {
-                    if (a.left.type === esprima.Syntax.Identifier) {
-                        const pos = params.indexOf(a.left.name);
-                        if (pos === -1) {
-                            return false;
-                        }
-                        if (!isNumber(a.right)) {
-                            return false;
-                        }
-                        params.splice(pos, 1);
-                        return true;
-                    } else if (a.right.type === esprima.Syntax.Identifier) {
-                        const pos = params.indexOf(a.right.name);
-                        if (pos === -1) {
-                            return false;
-                        }
-                        if (!isNumber(a.left)) {
-                            return false;
-                        }
-                        params.splice(pos, 1);
-                        return true;
-                    }
-                    return false;
-                }
-                return false;
-            })) {
-                return;
-            }
-            functions.push(n as ESTree.FunctionDeclaration);
-        }
-    });
+    const functions: ESTree.FunctionDeclaration[] = findStringArrayFunctionWrappers(decodeFnId, root);
     if(functions.length === 0) {
         return false;
     }

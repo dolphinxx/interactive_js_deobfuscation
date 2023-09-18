@@ -82,7 +82,7 @@ export function isLiteralLike(node: EsNode | null | undefined): boolean {
     if (node.type === esprima.Syntax.UnaryExpression) {
         return (node as ESTree.UnaryExpression).argument.type === esprima.Syntax.Literal;
     }
-    if(node.type === esprima.Syntax.BinaryExpression) {
+    if (node.type === esprima.Syntax.BinaryExpression) {
         return isLiteralLike((node as ESTree.BinaryExpression).left) && isLiteralLike((node as ESTree.BinaryExpression).right);
     }
     return false;
@@ -258,7 +258,7 @@ export function replaceIdentifiers(root: EsNode, map: { [key: string]: EsNode })
     })
 }
 
-export function cloneNode(node: EsNode, parent: EsNode | null): EsNode {
+export function cloneNode<T extends EsNode>(node: T, parent: EsNode | null): T {
     const result = copy(node, {excludes: ['parent']});
     applyAstParent(result);
     result.parent = parent;
@@ -382,7 +382,7 @@ export function getRemovableParentNode(node: EsNode): EsNode {
     return result;
 }
 
-export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null):boolean {
+export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null): boolean {
     if (!scope) {
         scope = closestBlock(node);
     }
@@ -430,6 +430,20 @@ export function findIdentifierUsage(id: ESTree.Identifier): ESTree.Identifier[] 
     return found;
 }
 
+export function findOne<T>(test: (node: EsNode) => boolean, root: EsNode): T | null {
+    let found: T | null = null;
+    traverse(root, {
+        enter(n: EsNode) {
+            if (test(n)) {
+                found = n as T;
+                (this as Controller).break();
+                return;
+            }
+        }
+    });
+    return found;
+}
+
 export function findOneByType<T>(type: (typeof esprima.Syntax[keyof typeof esprima.Syntax]), root: EsNode): T | null {
     let found: T | null = null;
     traverse(root, {
@@ -459,4 +473,89 @@ export function isIdOfParent(node: ESTree.Identifier): boolean {
     // }
     // return false;
     return (node as { id?: any }).id === node;
+}
+
+function flattenAdditionAndSubtractionOperation(node: EsNode, positive: boolean, result: { positive: boolean, val: number | ESTree.Identifier, isNum: boolean, score: number }[]): void {
+    if (node.type === esprima.Syntax.Literal) {
+        const n = node as ESTree.Literal;
+        if (typeof n.value !== 'number') {
+            throw new Error('only numeric literal is supported, got ' + n.value);
+        }
+        result.push({positive, val: n.value as number, isNum: true, score: positive ? 3 : 2});
+        return;
+    }
+    if (node.type === esprima.Syntax.Identifier) {
+        const n = node as ESTree.Identifier;
+        result.push({positive, val: n, isNum: false, score: positive ? 1 : 0});
+        return;
+    }
+    if (node.type === esprima.Syntax.UnaryExpression) {
+        const n = node as ESTree.UnaryExpression;
+        if (n.operator !== '+' && n.operator !== '-') {
+            throw new Error('only +/- are supported, got ' + n.operator);
+        }
+        flattenAdditionAndSubtractionOperation(n.argument, positive === (n.operator === '+'), result);
+        return;
+    }
+    if (node.type === esprima.Syntax.BinaryExpression) {
+        const n = node as ESTree.BinaryExpression;
+        if (n.operator !== '+' && n.operator !== '-') {
+            throw new Error('only +/- are supported, got ' + n.operator);
+        }
+        flattenAdditionAndSubtractionOperation(n.left, positive, result);
+        flattenAdditionAndSubtractionOperation(n.right, positive === (n.operator === '+'), result);
+        return;
+    }
+    throw new Error('only Literal, UnaryExpression, BinaryExpression and Identifier are supported, got ' + node.type);
+}
+
+/**
+ * Simplify BinaryOperation that contains an Identifier, ie: `((_0x8da0e3 - -0x37d) - 0x1d0) - 0x1c6`
+ * @param node
+ */
+export function simplifyAdditionAndSubtractionOperation(node: ESTree.BinaryExpression): ESTree.Expression {
+    // fast skip
+    if(node.left.type === esprima.Syntax.Identifier && (node.right.type === esprima.Syntax.Literal || (node.right.type === esprima.Syntax.UnaryExpression && node.right.argument.type === esprima.Syntax.Literal))) {
+        return node;
+    }
+    if(node.right.type === esprima.Syntax.Identifier && (node.left.type === esprima.Syntax.Literal || (node.left.type === esprima.Syntax.UnaryExpression && node.left.argument.type === esprima.Syntax.Literal))) {
+        return node;
+    }
+    let list: { positive: boolean, val: number | ESTree.Identifier, isNum: boolean, score: number }[] = [];
+    flattenAdditionAndSubtractionOperation(node, true, list);
+    list.sort((a, b) => b.score - a.score);
+    let result = 0;
+    list = list.filter(n => {
+        if (n.isNum) {
+            result += n.positive ? +(n.val as number) : -(n.val as number);
+            return false;
+        }
+        return true;
+    });
+    if (list.length === 0) {
+        return newLiteral(result, node.parent);
+    }
+    if (list.length === 1) {
+        const resultNode = {
+            type: esprima.Syntax.BinaryExpression,
+            operator: result < 0 ? '-' : '+',
+            parent: node.parent,
+        } as ESTree.BinaryExpression;
+        let left: ESTree.Expression = list[0].val as ESTree.Identifier;
+        if (!list[0].positive) {
+            const u = {
+                type: esprima.Syntax.UnaryExpression,
+                operator: '-',
+                argument: left,
+            } as ESTree.UnaryExpression;
+            left.parent = u;
+            left = u;
+        }
+        left.parent = resultNode;
+        const right = newLiteral(Math.abs(result), resultNode);
+        resultNode.left = left;
+        resultNode.right = right;
+        return resultNode;
+    }
+    throw new Error('expect at most one identifier, got ' + list.length);
 }
