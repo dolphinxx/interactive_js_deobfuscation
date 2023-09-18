@@ -13,11 +13,11 @@ hi();
 // @@expected
 var a = 1;
 function hi() {
-    const _0x280647 = 'Hello World!世界你好！';
-    console['log'](_0x280647);
+    const _0x461ef0 = "Hello World!世界你好！";
+    console["log"](_0x461ef0);
 }
 var b = ['a', 'b', 'c'];
 if (b["length"] === 3) {
-    console["log"](b["join"](' '));
+    console['log'](b["join"](' '));
 }
 hi();

@@ -25,6 +25,9 @@ describe('StringTransformation', () => {
     it('array calls', () => {
         runTransformerTest(prefix + 'array-calls', stringArrayTransformations);
     });
+    it('array calls function', () => {
+        runTransformerTest(prefix + 'array-calls-function', stringArrayTransformations);
+    });
     it('array function wrappers', () => {
         runTransformerTest(prefix + 'array-function-wrappers', stringArrayTransformations);
     });

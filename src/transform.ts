@@ -13,12 +13,11 @@ import {
     getRemovableParentNode,
     isFinal,
     isIdentifierIdentical,
-    isIdentifierReferenced,
+    isIdentifierReferenced, isLiteral,
     isLiteralLike,
-    isLiteralOfType,
-    isNumber,
+    isNumber, isStringLiteral,
     newLiteral,
-    removeIdentifierIfUnused,
+    removeIdentifierIfUnused, replaceIdentifiers,
     unary
 } from "./util";
 import {findStringArrayDecodeFunction, findStringArrayFunction, findStringArrayRotateExpr} from "./string-array-helper";
@@ -128,15 +127,19 @@ export function stringArrayTransformations(root: EsNode) {
     });
 }
 
+type ParamsAndReturn = {
+    params: string[];
+    rt: EsNode;
+}
+
 /**
  * String Array Calls Transform
- * FIXME: function
  * @param root
  */
 function stringArrayCallsTransform(root: EsNode) {
     // Find the map
     // All the property values should be numeric literals.
-    const hashes: { scope: EsNode, node: ESTree.VariableDeclarator, id: string, props: { [key: string]: number } }[] = [];
+    const hashes: { scope: EsNode, node: ESTree.VariableDeclarator, id: string, props: { [key: string]: EsNode | ParamsAndReturn } }[] = [];
     traverse(root, {
         enter(n: EsNode) {
             if (n.type === esprima.Syntax.VariableDeclarator && (n as ESTree.VariableDeclarator).id.type === esprima.Syntax.Identifier && (n as ESTree.VariableDeclarator).init?.type === esprima.Syntax.ObjectExpression) {
@@ -144,7 +147,20 @@ function stringArrayCallsTransform(root: EsNode) {
                     if (o.type !== esprima.Syntax.Property) {
                         return false;
                     }
-                    return o.key.type === esprima.Syntax.Identifier && isLiteralOfType(o.value, 'number');
+                    // key is an identifier or a literal
+                    if (o.key.type !== esprima.Syntax.Identifier && !isStringLiteral(o.key)) {
+                        return false;
+                    }
+                    // value is a literal
+                    if (isLiteralLike(o.value)) {
+                        return true;
+                    }
+                    // or a simple function
+                    if (o.value.type === esprima.Syntax.FunctionExpression && (o.value as ESTree.FunctionExpression).body.body.length === 1 && (o.value as ESTree.FunctionExpression).body.body[0].type === esprima.Syntax.ReturnStatement) {
+                        // TODO: ensure that the function body should not contain any identifier that is not present in the param list.
+                        return true;
+                    }
+                    return false;
                 })) {
                     return;
                 }
@@ -152,9 +168,18 @@ function stringArrayCallsTransform(root: EsNode) {
                     return;
                 }
                 // cache the props of the ObjectExpression
-                const props: { [key: string]: number } = {};
+                const props: { [key: string]: EsNode | ParamsAndReturn } = {};
                 ((n as ESTree.VariableDeclarator).init as ESTree.ObjectExpression).properties.forEach(o => {
-                    props[((o as ESTree.Property).key as ESTree.Identifier).name] = ((o as ESTree.Property).value as ESTree.Literal).value as number;
+                    const p = o as ESTree.Property;
+                    const key = (p.key as ESTree.Identifier).name;
+                    if (p.value.type === esprima.Syntax.FunctionExpression) {
+                        props[key] = {
+                            params: p.value.params.map(param => (param as ESTree.Identifier).name),
+                            rt: (p.value.body.body[0] as ESTree.ReturnStatement).argument!,
+                        };
+                        return;
+                    }
+                    props[key] = p.value;
                 });
                 hashes.push({
                     scope: closestBlock(n)!,
@@ -168,13 +193,29 @@ function stringArrayCallsTransform(root: EsNode) {
     for (const h of hashes) {
         replace(h.scope, {
             leave(n: EsNode) {
+                // find the call expression
+                if (n.type === esprima.Syntax.CallExpression && (n as ESTree.CallExpression).callee.type === esprima.Syntax.MemberExpression && isIdentifierIdentical(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).object, h.id)) {
+                    const propName = (((n as ESTree.CallExpression).callee as ESTree.MemberExpression).property as ESTree.Identifier).name;
+                    if (Object.hasOwnProperty.call(h.props, propName)) {
+                        const propVal = h.props[propName] as ParamsAndReturn;
+                        const funcBodyExpr = cloneNode(propVal.rt, n.parent);
+                        const paramsMap: { [key: string]: EsNode } = {};
+                        (n as ESTree.CallExpression).arguments.forEach((a, i) => {
+                            paramsMap[propVal.params[i]] = a;
+                        })
+                        // replace identifiers in the returning expression with the call arguments.
+                        replaceIdentifiers(funcBodyExpr, paramsMap);
+                        return funcBodyExpr;
+                    }
+                    return;
+                }
                 // find the member expressions
                 if (n.type === esprima.Syntax.MemberExpression && isIdentifierIdentical((n as ESTree.MemberExpression).object, h.id) && (n as ESTree.MemberExpression).property.type === esprima.Syntax.Identifier) {
                     const propName = ((n as ESTree.MemberExpression).property as ESTree.Identifier).name;
                     if (Object.hasOwnProperty.call(h.props, propName)) {
-                        // replace with the actual literal
-                        return newLiteral(h.props[propName], n.parent);
+                        return cloneNode(h.props[propName] as EsNode, n.parent);
                     }
+                    return;
                 }
             }
         });
