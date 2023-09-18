@@ -82,7 +82,11 @@ export function stringArrayTransformations(root: EsNode) {
         return ${decodeFnId}
     }())`) as Function;
 
-    stringArrayFunctionWrappers(decodeFnId, root);
+    for(let i = 0;i < 5;i++) {
+        if(!stringArrayFunctionWrappers(decodeFnId, root)) {
+            break;
+        }
+    }
 
     // collect refers to the decodeFn
     const alias: string[] = [decodeFnId];
@@ -286,7 +290,7 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
  * @param decodeFnId the id of the string array decoding function
  * @param root the root node
  */
-function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode) {
+function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode):boolean {
     // The string array decoding is wrapped by a function call.
     // the callee function contains two parameters.
     // And the function body contains a single ReturnStatement whose argument is a CallExpression, and the callee is the string array decoding function.
@@ -357,6 +361,10 @@ function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode) {
             functions.push(n as ESTree.FunctionDeclaration);
         }
     });
+    if(functions.length === 0) {
+        return false;
+    }
+    let modified = false;
     for (const fn of functions) {
         const scope = closestBlock(fn)!;
         const fnId = (fn.id as ESTree.Identifier).name;
@@ -370,12 +378,15 @@ function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode) {
                     const result = cloneNode(replacement, n.parent) as ESTree.CallExpression;
                     result.arguments = result.arguments.map((a) => {
                         if (a.type === esprima.Syntax.Identifier) {
+                            modified = true;
                             return newLiteral(params[paramNames.indexOf(a.name)], a.parent);
                         }
                         if (a.type === esprima.Syntax.UnaryExpression) {
+                            modified = true;
                             return newLiteral(unary(params[paramNames.indexOf((a.argument as ESTree.Identifier).name)], a.operator), a.parent);
                         }
                         if (a.type === esprima.Syntax.BinaryExpression) {
+                            modified = true;
                             return newLiteral(arithmetic(a.left.type === esprima.Syntax.Identifier ? params[paramNames.indexOf((a.left as ESTree.Identifier).name)] : evaluate(a.left), a.right.type === esprima.Syntax.Identifier ? params[paramNames.indexOf((a.right as ESTree.Identifier).name)] : evaluate(a.right), a.operator), a.parent);
                         }
                         throw 'should never reach: ' + a.type;
@@ -384,8 +395,11 @@ function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode) {
                 }
             }
         });
-        removeIdentifierIfUnused(fn.id!, scope);
+        if(removeIdentifierIfUnused(fn.id!, scope)) {
+            modified = true;
+        }
     }
+    return modified;
 }
 
 /**

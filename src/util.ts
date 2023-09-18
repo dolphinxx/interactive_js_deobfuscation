@@ -382,13 +382,13 @@ export function getRemovableParentNode(node: EsNode): EsNode {
     return result;
 }
 
-export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null) {
+export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null):boolean {
     if (!scope) {
         scope = closestBlock(node);
     }
     if (isIdentifierReferenced(node, scope!)) {
         globalThis.logDebug('removeVariableIfUnused failed');
-        return;
+        return false;
     }
     const toRemove = getRemovableParentNode(node);
     let done = false;
@@ -405,6 +405,7 @@ export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null) {
             }
         }
     });
+    return done;
 }
 
 export function findIdentifierUsage(id: ESTree.Identifier): ESTree.Identifier[] {
