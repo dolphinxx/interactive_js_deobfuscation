@@ -7,20 +7,50 @@ import * as acorn from "acorn";
 
 type LiteralTypes = 'string' | 'boolean' | 'number' | 'null' | 'RegExp' | 'undefined' | 'bigint';
 
-export function getNodeValue(node: EsNode | null | undefined) {
+const fakeWindow = {
+
+};
+
+export function evaluate(node: EsNode | null | undefined):any {
     if (node == null) {
-        return null;
+        throw 'node is null or undefined';
     }
+    if (node.type === esprima.Syntax.Literal) {
+        return (node as ESTree.Literal).value;
+    }
+    if (node.type === esprima.Syntax.UnaryExpression) {
+        return unaryOperate((node as ESTree.UnaryExpression).argument, (node as ESTree.UnaryExpression).operator);
+    }
+    if(node.type === esprima.Syntax.BinaryExpression) {
+        return binaryOperate((node as ESTree.BinaryExpression).left, (node as ESTree.BinaryExpression).right, (node as ESTree.BinaryExpression).operator);
+    }
+    // []
+    if(node.type === esprima.Syntax.ArrayExpression && (node as ESTree.ArrayExpression).elements.length === 0) {
+        return [];
+    }
+    // window
+    if (node.type === esprima.Syntax.Identifier && (node as ESTree.Identifier).name === 'window') {
+        return fakeWindow;
+    }
+    // undefined
+    if (node.type === esprima.Syntax.Identifier && (node as ESTree.Identifier).name === 'undefined') {
+        return undefined;
+    }
+    throw 'can not evaluate a ' + node.type;
+}
+
+/**
+ * Get the value of a property key
+ * @param node
+ */
+export function getKey(node: EsNode) {
     if (node.type === esprima.Syntax.Literal) {
         return (node as ESTree.Literal).value;
     }
     if (node.type === esprima.Syntax.Identifier) {
         return (node as ESTree.Identifier).name;
     }
-    if (node.type === esprima.Syntax.UnaryExpression) {
-        return unaryOperate((node as ESTree.UnaryExpression).argument, (node as ESTree.UnaryExpression).operator);
-    }
-    throw 'can not get value from a ' + node.type;
+    throw 'not a valid key type: ' + node.type;
 }
 
 /**
@@ -137,13 +167,13 @@ export function applyAstParent(node: ESTree.Node) {
 
 
 export function binaryOperate(left: EsNode, right: EsNode, operator: ESTree.BinaryOperator): any {
-    const leftVal = getNodeValue(left);
-    const rightVal = getNodeValue(right);
+    const leftVal = evaluate(left);
+    const rightVal = evaluate(right);
     return arithmetic(leftVal, rightVal, operator);
 }
 
 export function unaryOperate(arg: EsNode, operator: ESTree.UnaryOperator): any {
-    const argVal = getNodeValue(arg);
+    const argVal = evaluate(arg);
     return unary(argVal, operator);
 }
 

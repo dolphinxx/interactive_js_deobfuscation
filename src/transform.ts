@@ -9,15 +9,19 @@ import {
     arithmetic,
     cloneNode,
     closestBlock,
-    getNodeValue,
+    evaluate,
     getRemovableParentNode,
     isFinal,
     isIdentifierIdentical,
-    isIdentifierReferenced, isLiteral,
+    isIdentifierReferenced,
+    isLiteralEquals,
     isLiteralLike,
-    isNumber, isStringLiteral,
+    isNameEquals,
+    isNumber,
+    isStringLiteral,
     newLiteral,
-    removeIdentifierIfUnused, replaceIdentifiers,
+    removeIdentifierIfUnused,
+    replaceIdentifiers,
     unary
 } from "./util";
 import {findStringArrayDecodeFunction, findStringArrayFunction, findStringArrayRotateExpr} from "./string-array-helper";
@@ -110,7 +114,7 @@ export function stringArrayTransformations(root: EsNode) {
             if (n.type === esprima.Syntax.CallExpression) {
                 const c = n as ESTree.CallExpression;
                 if (c.callee.type === esprima.Syntax.Identifier && alias.includes((c.callee as ESTree.Identifier).name) && c.arguments.every(a => isLiteralLike(a))) {
-                    const val = func.apply(null, c.arguments.map(a => getNodeValue(a)));
+                    const val = func.apply(null, c.arguments.map(a => evaluate(a)));
                     globalThis.logDebug('evalObfuscatedString', n, val);
                     return newLiteral(val, n.parent);
                 }
@@ -326,7 +330,7 @@ function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode) {
         replace(scope, {
             leave(n: EsNode) {
                 if (n.type === esprima.Syntax.CallExpression && isIdentifierIdentical((n as ESTree.CallExpression).callee, fnId) && (n as ESTree.CallExpression).arguments.length === 2 && (n as ESTree.CallExpression).arguments.every(a => isNumber(a))) {
-                    const params = (n as ESTree.CallExpression).arguments.map(a => getNodeValue(a) as number);
+                    const params = (n as ESTree.CallExpression).arguments.map(a => evaluate(a) as number);
                     const result = cloneNode(replacement, n.parent) as ESTree.CallExpression;
                     result.arguments = result.arguments.map((a) => {
                         if (a.type === esprima.Syntax.Identifier) {
@@ -336,7 +340,7 @@ function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode) {
                             return newLiteral(unary(params[paramNames.indexOf((a.argument as ESTree.Identifier).name)], a.operator), a.parent);
                         }
                         if (a.type === esprima.Syntax.BinaryExpression) {
-                            return newLiteral(arithmetic(a.left.type === esprima.Syntax.Identifier ? params[paramNames.indexOf((a.left as ESTree.Identifier).name)] : getNodeValue(a.left), a.right.type === esprima.Syntax.Identifier ? params[paramNames.indexOf((a.right as ESTree.Identifier).name)] : getNodeValue(a.right), a.operator), a.parent);
+                            return newLiteral(arithmetic(a.left.type === esprima.Syntax.Identifier ? params[paramNames.indexOf((a.left as ESTree.Identifier).name)] : evaluate(a.left), a.right.type === esprima.Syntax.Identifier ? params[paramNames.indexOf((a.right as ESTree.Identifier).name)] : evaluate(a.right), a.operator), a.parent);
                         }
                         throw 'should never reach: ' + a.type;
                     });
@@ -370,4 +374,126 @@ export function hexadecimal(root: EsNode) {
             }
         }
     });
+}
+
+/**
+ * reverse the controlFlowFlattening of obfuscator-js
+ * <pre>
+ *    In a BlockStatement's root, There should be:
+ *    A VariableDeclarator(the flow string variable) whose init is an expression splitting a string that matches /^\d+[\d|]+\d+$/.
+ *    A VariableDeclarator(the increment variable) whose init is the numeric literal '0'.
+ *    A WhileStatement whose test is eventually the boolean value 'true'.
+ *    The WhileStatement should contain a single SwitchStatement.
+ *    The discriminant of the SwitchStatement is a MemberExpression, whose object is the flow string variable, and the property is the increment variable.
+ * </pre>
+ * @param root
+ */
+export function controlFlowFlattening(root: EsNode) {
+    // collect
+    const scopes: ESTree.BlockStatement[] = [];
+    const data: { cases: ESTree.SwitchCase[], flow: string[], removables: EsNode[], whileStmt: ESTree.WhileStatement }[] = [];
+    traverse(root, {
+        enter(n: EsNode) {
+            // find the while statement
+            if (n.type === esprima.Syntax.WhileStatement && n.parent?.type === esprima.Syntax.BlockStatement) {
+                const whileStmt = n as ESTree.WhileStatement;
+                // ensure the test of the while statement is eventually true, and the body of the while statement is a block
+                if (evaluate(whileStmt.test) !== true || whileStmt.body.type !== esprima.Syntax.BlockStatement) {
+                    return;
+                }
+                // the while statement body has exactly two statements, the first one is a SwitchStatement, and the second one is a BreakStatement
+                if (whileStmt.body.body.length !== 2 || whileStmt.body.body[0].type !== esprima.Syntax.SwitchStatement || whileStmt.body.body[1].type !== esprima.Syntax.BreakStatement) {
+                    return;
+                }
+                const switchStmt = whileStmt.body.body[0] as ESTree.SwitchStatement;
+                // ensure that the type of each case test is a numeric string
+                if (!switchStmt.cases.every(c => c.test?.type === esprima.Syntax.Literal && typeof (c.test as ESTree.Literal).value === 'string' && /^\d+$/.test((c.test as ESTree.Literal).value as string))) {
+                    return;
+                }
+                // the discriminant of the SwitchStatement is a MemberExpression, the object is the variable id of the flow string, the property is an UpdateExpress.
+                if (switchStmt.discriminant.type !== esprima.Syntax.MemberExpression || switchStmt.discriminant.object.type !== esprima.Syntax.Identifier || switchStmt.discriminant.property.type !== esprima.Syntax.UpdateExpression || switchStmt.discriminant.property.argument.type !== esprima.Syntax.Identifier || switchStmt.discriminant.property.operator !== '++') {
+                    return false;
+                }
+                const flowStringId = (switchStmt.discriminant.object as ESTree.Identifier).name;
+                const incrementId = (switchStmt.discriminant.property.argument as ESTree.Identifier).name;
+                const parent = whileStmt.parent as ESTree.BlockStatement;
+                // find the splitting VariableDeclarator and the auto increment VariableDeclarator.
+                let flow: string[] | null = null;
+                let incrementVar: EsNode | null = null;
+                let flowVar: EsNode | null = null;
+                const removables: EsNode[] = [];
+                parent.body.forEach(s => {
+                    if (s.type !== esprima.Syntax.VariableDeclaration) {
+                        return false;
+                    }
+                    s.declarations.forEach(dec => {
+                        // the splitting
+                        if (!flowVar && isIdentifierIdentical(dec.id, flowStringId) && dec.init?.type === esprima.Syntax.CallExpression && dec.init.callee.type === esprima.Syntax.MemberExpression && isNameEquals('split', dec.init.callee.property) && isStringLiteral(dec.init.callee.object) && /^\d[\d|]+\d$/.test((dec.init.callee.object as ESTree.Literal).value as string)) {
+                            flow = ((dec.init.callee.object as ESTree.Literal).value as string).split('|');
+                            flowVar = dec;
+                            return;
+                        }
+                        if (!incrementVar && isIdentifierIdentical(dec.id, incrementId) && isLiteralEquals(0, dec.init)) {
+                            incrementVar = dec;
+                            return;
+                        }
+                    });
+                });
+                if (flow === null || incrementVar === null) {
+                    return;
+                }
+                if ((flowVar as EsNode)!.parent === (incrementVar as EsNode)!.parent) {
+                    if (((flowVar as EsNode).parent as ESTree.VariableDeclaration).declarations.length === 2) {
+                        removables.push((flowVar as EsNode).parent!);
+                    } else {
+                        removables.push(flowVar as EsNode, incrementVar as EsNode);
+                    }
+                } else {
+                    removables.push(getRemovableParentNode(flowVar as EsNode), getRemovableParentNode(incrementVar as EsNode));
+                }
+
+                // confirmed
+                data.push({
+                    cases: switchStmt.cases,
+                    flow,
+                    removables,
+                    whileStmt: whileStmt,
+                });
+                scopes.push(parent);
+            }
+        }
+    });
+    if (scopes.length === 0) {
+        return;
+    }
+
+    for (let i = 0; i < scopes.length; i++) {
+        const scope = scopes[i];
+        const {cases, flow, removables, whileStmt} = data[i];
+        let replacement = null;
+
+        const map: { [key: string]: ESTree.SwitchCase } = {};
+        cases.forEach(_ => map[(_.test as ESTree.Literal).value as string] = _);
+        replacement = flow.map(o => {
+            return map[o].consequent.filter(c => c.type !== esprima.Syntax.ContinueStatement).map(c => {
+                c.parent = scope;
+                return c;
+            });
+        }).flat();
+        // // replace the WhileStatement with sorted statements.
+        scope.body.splice(scope.body.indexOf(whileStmt), 1, ...replacement);
+        // remove the removable variable declarations
+        replace(scope, {
+            enter(n: EsNode) {
+                if (removables.length === 0) {
+                    (this as Controller).break();
+                    return;
+                }
+                if (removables.includes(n)) {
+                    removables.splice(removables.indexOf(n), 1);
+                    (this as Controller).remove();
+                }
+            }
+        });
+    }
 }

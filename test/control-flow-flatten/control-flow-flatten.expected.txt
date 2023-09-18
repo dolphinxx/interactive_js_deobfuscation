@@ -1,0 +1,9 @@
+class Offcanvas extends BaseComponent {
+    constructor(element, config) {
+        super(element, config);
+        this['_isShown'] = ![];
+        this['_backdrop'] = this['_initializeBackDrop']();
+        this['_focustrap'] = this['_initializeFocusTrap']();
+        this['_addEventListeners']();
+    }
+}

@@ -1,0 +1,26 @@
+class Offcanvas extends BaseComponent {
+    constructor(element, config) {
+        const _0x2f05ad = '\x32\x7c\x34\x7c\x33\x7c\x30\x7c\x31'['\x73\x70\x6c\x69\x74']('\x7c');
+        let _0x3546ed = 0x0;
+        while (!![]) {
+            switch (_0x2f05ad[_0x3546ed++]) {
+            case '\x30':
+                this['\x5f\x66\x6f\x63\x75\x73\x74\x72\x61\x70'] = this['\x5f\x69\x6e\x69\x74\x69\x61\x6c\x69\x7a\x65\x46\x6f\x63\x75\x73\x54\x72\x61\x70']();
+                continue;
+            case '\x31':
+                this['\x5f\x61\x64\x64\x45\x76\x65\x6e\x74\x4c\x69\x73\x74\x65\x6e\x65\x72\x73']();
+                continue;
+            case '\x32':
+                super(element, config);
+                continue;
+            case '\x33':
+                this['\x5f\x62\x61\x63\x6b\x64\x72\x6f\x70'] = this['\x5f\x69\x6e\x69\x74\x69\x61\x6c\x69\x7a\x65\x42\x61\x63\x6b\x44\x72\x6f\x70']();
+                continue;
+            case '\x34':
+                this['\x5f\x69\x73\x53\x68\x6f\x77\x6e'] = ![];
+                continue;
+            }
+            break;
+        }
+    }
+}
