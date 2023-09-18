@@ -23,7 +23,7 @@ import {
     inlineReference,
 } from "./traverse";
 import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
-import {controlFlowFlattening, stringArrayTransformations, simplify} from "./transform";
+import {controlFlowFlattening, stringArrayTransformations, simplify, hexadecimal} from "./transform";
 
 globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 
@@ -213,6 +213,10 @@ class Editor {
             } else {
                 inlineIdentifier(node, this.program!);
             }
+            this.renderAst(this.program!);
+        });
+        this.root.querySelector('#hexadecimalBtn')?.addEventListener('click', () => {
+            hexadecimal(this.program!);
             this.renderAst(this.program!);
         });
         this.root.querySelector('#evalConstantBtn')?.addEventListener('click', () => {
