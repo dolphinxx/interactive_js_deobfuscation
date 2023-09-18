@@ -363,7 +363,7 @@ export function hexadecimal(root: EsNode) {
                 }
                 if (type === 'string') {
                     if ((n as ESTree.Literal).raw !== undefined) {
-                        (n as ESTree.Literal).raw = (n as ESTree.Literal).raw!.replace(/(\\x\d{2}|\\u[0-9a-f]{4})/g, (m, n) => String.fromCharCode(parseInt(n.substring(2), 16))).toString();
+                        (n as ESTree.Literal).raw = (n as ESTree.Literal).raw!.replace(/(\\x[0-9a-f]{2}|\\u[0-9a-f]{4})/g, (m, n) => String.fromCharCode(parseInt(n.substring(2), 16))).toString();
                     }
                     return;
                 }
