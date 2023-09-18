@@ -1,5 +1,5 @@
-import {unshuffleWhileSwitch} from "../src/traverse";
 import {runTest} from "./test-util";
+import {controlFlowFlattening} from "../src/transform";
 
 describe('UnshuffleWhileSwitch', () => {
     it('unshuffle while switch', () => {
@@ -37,6 +37,6 @@ describe('UnshuffleWhileSwitch', () => {
     var _0x316448 = _0x454f95 !== -1 && _0x454f95 === _0x39e22e;
     _0x316448 && ((_0x57d5be.length == _0x8b8be3.length || _0x8b8be3.indexOf('.') === 0) && (_0x57c620 = true));
 }`;
-        runTest(input, expected, unshuffleWhileSwitch);
+        runTest(input, expected, controlFlowFlattening);
     });
 });

@@ -7,12 +7,11 @@ import {AstTransformer, EsNode} from "../src/global";
 import {
     computedToDot,
     evalConstantExpressions,
-    flattenHashedMember,
     simplify
 } from "../src/traverse";
 import {applyAstParent} from "../src/util";
 import {join} from "path";
-import {existsSync, readFileSync} from "fs";
+import {readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
 import {hexadecimal, stringArrayTransformations} from "../src/transform";
@@ -83,14 +82,6 @@ export function runTestFile(name: string) {
     const ast = prepareAst(readFileSync(join(__dirname, `${name}.input.txt`), {encoding: 'utf-8'}));
     stringArrayTransformations(ast);
     let actual: string = generate(ast, generateOptions).trim();
-    for (let i = 0; i < 10; i++) {
-        flattenHashedMember(ast);
-        let newCode = generate(ast, generateOptions).trim();
-        if (newCode === actual) {
-            break;
-        }
-        actual = newCode;
-    }
     for (let i = 0; i < 10; i++) {
         evalConstantExpressions(ast);
         let newCode = generate(ast, generateOptions).trim();

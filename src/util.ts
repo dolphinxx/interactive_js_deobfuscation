@@ -7,11 +7,9 @@ import * as acorn from "acorn";
 
 type LiteralTypes = 'string' | 'boolean' | 'number' | 'null' | 'RegExp' | 'undefined' | 'bigint';
 
-const fakeWindow = {
+const fakeWindow = {};
 
-};
-
-export function evaluate(node: EsNode | null | undefined):any {
+export function evaluate(node: EsNode | null | undefined): any {
     if (node == null) {
         throw 'node is null or undefined';
     }
@@ -21,11 +19,11 @@ export function evaluate(node: EsNode | null | undefined):any {
     if (node.type === esprima.Syntax.UnaryExpression) {
         return unaryOperate((node as ESTree.UnaryExpression).argument, (node as ESTree.UnaryExpression).operator);
     }
-    if(node.type === esprima.Syntax.BinaryExpression) {
+    if (node.type === esprima.Syntax.BinaryExpression) {
         return binaryOperate((node as ESTree.BinaryExpression).left, (node as ESTree.BinaryExpression).right, (node as ESTree.BinaryExpression).operator);
     }
     // []
-    if(node.type === esprima.Syntax.ArrayExpression && (node as ESTree.ArrayExpression).elements.length === 0) {
+    if (node.type === esprima.Syntax.ArrayExpression && (node as ESTree.ArrayExpression).elements.length === 0) {
         return [];
     }
     // window
@@ -50,7 +48,7 @@ export function getKey(node: EsNode) {
     if (node.type === esprima.Syntax.Identifier) {
         return (node as ESTree.Identifier).name;
     }
-    throw 'not a valid key type: ' + node.type;
+    return undefined;
 }
 
 /**

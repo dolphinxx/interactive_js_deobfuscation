@@ -34,7 +34,11 @@ export function stringArrayTransformations(root: EsNode) {
         return;
     }
 
-    stringArrayCallsTransform(root);
+    for(let i = 0;i < 10;i++) {
+        if(!stringArrayCallsTransform(root)) {
+            break;
+        }
+    }
 
     const rootBody: ESTree.Statement[] = (root as { body?: ESTree.Statement[] })!.body!;
 
@@ -130,6 +134,11 @@ export function stringArrayTransformations(root: EsNode) {
             }
         }
     });
+    for(let i = 0;i < 10;i++) {
+        if(!stringArrayCallsTransform(root)) {
+            break;
+        }
+    }
 }
 
 type ParamsAndReturn = {
@@ -141,7 +150,7 @@ type ParamsAndReturn = {
  * String Array Calls Transform
  * @param root
  */
-export function stringArrayCallsTransform(root: EsNode) {
+export function stringArrayCallsTransform(root: EsNode):boolean {
     // Find the map
     // All the property values should be numeric literals.
     const hashes: { scope: EsNode, node: ESTree.VariableDeclarator, id: string, props: { [key: string]: EsNode | ParamsAndReturn } }[] = [];
@@ -195,12 +204,19 @@ export function stringArrayCallsTransform(root: EsNode) {
             }
         }
     });
+    if(hashes.length === 0) {
+        return false;
+    }
+    let modified = false;
     for (const h of hashes) {
         replace(h.scope, {
             leave(n: EsNode) {
                 // find the call expression
                 if (n.type === esprima.Syntax.CallExpression && (n as ESTree.CallExpression).callee.type === esprima.Syntax.MemberExpression && isIdentifierIdentical(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).object, h.id)) {
                     const propName = getKey(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).property);
+                    if(typeof propName !== 'string') {
+                        return;
+                    }
                     if (Object.hasOwnProperty.call(h.props, propName)) {
                         const propVal = h.props[propName] as ParamsAndReturn;
                         const funcBodyExpr = cloneNode(propVal.rt.argument!, n.parent);
@@ -210,6 +226,7 @@ export function stringArrayCallsTransform(root: EsNode) {
                         })
                         // replace identifiers in the returning expression with the call arguments.
                         replaceIdentifiers(funcBodyExpr, paramsMap);
+                        modified = true;
                         return funcBodyExpr;
                     }
                     return;
@@ -221,7 +238,11 @@ export function stringArrayCallsTransform(root: EsNode) {
                         return;
                     }
                     const propName = getKey((n as ESTree.MemberExpression).property);
+                    if(typeof propName !== 'string') {
+                        return;
+                    }
                     if (Object.hasOwnProperty.call(h.props, propName)) {
+                        modified = true;
                         return cloneNode(h.props[propName] as EsNode, n.parent);
                     }
                     return;
@@ -242,12 +263,14 @@ export function stringArrayCallsTransform(root: EsNode) {
                     }
                     if (n === removable) {
                         (this as Controller).remove();
+                        modified = true;
                         done = true;
                     }
                 }
             })
         }
     }
+    return modified;
 }
 
 /**
@@ -417,7 +440,7 @@ export function controlFlowFlattening(root: EsNode) {
                 }
                 // the discriminant of the SwitchStatement is a MemberExpression, the object is the variable id of the flow string, the property is an UpdateExpress.
                 if (switchStmt.discriminant.type !== esprima.Syntax.MemberExpression || switchStmt.discriminant.object.type !== esprima.Syntax.Identifier || switchStmt.discriminant.property.type !== esprima.Syntax.UpdateExpression || switchStmt.discriminant.property.argument.type !== esprima.Syntax.Identifier || switchStmt.discriminant.property.operator !== '++') {
-                    return false;
+                    return;
                 }
                 const flowStringId = (switchStmt.discriminant.object as ESTree.Identifier).name;
                 const incrementId = (switchStmt.discriminant.property.argument as ESTree.Identifier).name;

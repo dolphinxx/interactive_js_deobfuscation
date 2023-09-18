@@ -16,18 +16,15 @@ import * as diff from 'diff';
 import {
     computedToDot,
     evalConstantExpressions,
-    flattenHashedMember,
     inlineExpression,
     inlineFunction,
     inlineIdentifier,
     inlineIdentifierReference,
     inlineReference,
-    removeFunctionIfUnused,
     simplify,
-    unshuffleWhileSwitch
 } from "./traverse";
 import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
-import {stringArrayTransformations} from "./transform";
+import {controlFlowFlattening, stringArrayTransformations} from "./transform";
 
 globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 
@@ -227,10 +224,6 @@ class Editor {
             stringArrayTransformations(this.program!);
             this.renderAst(this.program!);
         });
-        this.root.querySelector('#flattenHashCallBtn')?.addEventListener('click', () => {
-            flattenHashedMember(this.program!);
-            this.renderAst(this.program!);
-        });
         this.root.querySelector('#simplifyBtn')?.addEventListener('click', () => {
             simplify(this.program!);
             this.renderAst(this.program!);
@@ -239,8 +232,8 @@ class Editor {
             computedToDot(this.program!);
             this.renderAst(this.program!);
         });
-        this.root.querySelector('#unshuffleWhileSwitchBtn')?.addEventListener('click', () => {
-            unshuffleWhileSwitch(this.program!);
+        this.root.querySelector('#controlFlowFlatteningBtn')?.addEventListener('click', () => {
+            controlFlowFlattening(this.program!);
             this.renderAst(this.program!);
         });
     }
