@@ -82,6 +82,9 @@ export function isLiteralLike(node: EsNode | null | undefined): boolean {
     if (node.type === esprima.Syntax.UnaryExpression) {
         return (node as ESTree.UnaryExpression).argument.type === esprima.Syntax.Literal;
     }
+    if(node.type === esprima.Syntax.BinaryExpression) {
+        return isLiteralLike((node as ESTree.BinaryExpression).left) && isLiteralLike((node as ESTree.BinaryExpression).right);
+    }
     return false;
 }
 
