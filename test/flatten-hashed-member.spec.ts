@@ -1,5 +1,5 @@
 import {runTest} from "./test-util";
-import {flattenHashedMember} from "../src/traverse";
+import {stringArrayCallsTransform} from "../src/transform";
 
 describe('FlattenHashedMember', () => {
     it('simple', () => {
@@ -52,7 +52,7 @@ function foo(a) {
 }
 const g = foo("msg");
 var b = 2;`;
-        runTest(input, expected, flattenHashedMember);
+        runTest(input, expected, stringArrayCallsTransform);
     });
     it('chained', () => {
         const input = `var a = 1;
@@ -87,6 +87,6 @@ const hash3 = {
 };
 const hh = hash3["c"];
 var b = 2;`;
-        runTest(input, expected, flattenHashedMember);
+        runTest(input, expected, stringArrayCallsTransform);
     });
 })

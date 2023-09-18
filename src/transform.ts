@@ -10,6 +10,7 @@ import {
     cloneNode,
     closestBlock,
     evaluate,
+    getKey,
     getRemovableParentNode,
     isFinal,
     isIdentifierIdentical,
@@ -133,14 +134,14 @@ export function stringArrayTransformations(root: EsNode) {
 
 type ParamsAndReturn = {
     params: string[];
-    rt: EsNode;
+    rt: ESTree.ReturnStatement;
 }
 
 /**
  * String Array Calls Transform
  * @param root
  */
-function stringArrayCallsTransform(root: EsNode) {
+export function stringArrayCallsTransform(root: EsNode) {
     // Find the map
     // All the property values should be numeric literals.
     const hashes: { scope: EsNode, node: ESTree.VariableDeclarator, id: string, props: { [key: string]: EsNode | ParamsAndReturn } }[] = [];
@@ -175,11 +176,11 @@ function stringArrayCallsTransform(root: EsNode) {
                 const props: { [key: string]: EsNode | ParamsAndReturn } = {};
                 ((n as ESTree.VariableDeclarator).init as ESTree.ObjectExpression).properties.forEach(o => {
                     const p = o as ESTree.Property;
-                    const key = (p.key as ESTree.Identifier).name;
+                    const key = getKey(p.key);
                     if (p.value.type === esprima.Syntax.FunctionExpression) {
                         props[key] = {
                             params: p.value.params.map(param => (param as ESTree.Identifier).name),
-                            rt: (p.value.body.body[0] as ESTree.ReturnStatement).argument!,
+                            rt: p.value.body.body[0] as ESTree.ReturnStatement,
                         };
                         return;
                     }
@@ -199,10 +200,10 @@ function stringArrayCallsTransform(root: EsNode) {
             leave(n: EsNode) {
                 // find the call expression
                 if (n.type === esprima.Syntax.CallExpression && (n as ESTree.CallExpression).callee.type === esprima.Syntax.MemberExpression && isIdentifierIdentical(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).object, h.id)) {
-                    const propName = (((n as ESTree.CallExpression).callee as ESTree.MemberExpression).property as ESTree.Identifier).name;
+                    const propName = getKey(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).property);
                     if (Object.hasOwnProperty.call(h.props, propName)) {
                         const propVal = h.props[propName] as ParamsAndReturn;
-                        const funcBodyExpr = cloneNode(propVal.rt, n.parent);
+                        const funcBodyExpr = cloneNode(propVal.rt.argument!, n.parent);
                         const paramsMap: { [key: string]: EsNode } = {};
                         (n as ESTree.CallExpression).arguments.forEach((a, i) => {
                             paramsMap[propVal.params[i]] = a;
@@ -214,8 +215,12 @@ function stringArrayCallsTransform(root: EsNode) {
                     return;
                 }
                 // find the member expressions
-                if (n.type === esprima.Syntax.MemberExpression && isIdentifierIdentical((n as ESTree.MemberExpression).object, h.id) && (n as ESTree.MemberExpression).property.type === esprima.Syntax.Identifier) {
-                    const propName = ((n as ESTree.MemberExpression).property as ESTree.Identifier).name;
+                if (n.type === esprima.Syntax.MemberExpression && isIdentifierIdentical((n as ESTree.MemberExpression).object, h.id) && ((n as ESTree.MemberExpression).property.type === esprima.Syntax.Identifier || isStringLiteral((n as ESTree.MemberExpression).property))) {
+                    if(n.parent?.type === esprima.Syntax.CallExpression && (n.parent as ESTree.CallExpression).callee === n) {
+                        // leave to the CallExpression handler.
+                        return;
+                    }
+                    const propName = getKey((n as ESTree.MemberExpression).property);
                     if (Object.hasOwnProperty.call(h.props, propName)) {
                         return cloneNode(h.props[propName] as EsNode, n.parent);
                     }
