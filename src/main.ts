@@ -189,6 +189,12 @@ class Editor {
         //         }
         //     }
         // })
+        this.historyEl.addEventListener('click', (e) => {
+            if((e.target as Node).nodeName === 'BUTTON' && (e.target as HTMLButtonElement).getAttribute('data-role') === 'apply') {
+                (e.target as HTMLButtonElement).closest('div[data-role="history-item"]').remove();
+                this.applyHistory((e.target as HTMLButtonElement).getAttribute('data-id'));
+            }
+        });
         this.root.querySelector('#refreshBtn')?.addEventListener('click', () => {
             this.refresh();
         });
@@ -375,9 +381,18 @@ class Editor {
         const applyBtn = document.createElement('button');
         applyBtn.classList.add('card-footer-item');
         applyBtn.setAttribute('data-role', 'apply');
+        applyBtn.setAttribute('data-id', id);
         applyBtn.innerText = 'Apply';
         footerEl.appendChild(applyBtn);
         item.appendChild(footerEl);
+    }
+
+    applyHistory(id:string) {
+        const code = this._history[id];
+        delete this._history[id];
+        if(code) {
+            this.setValue(code);
+        }
     }
 
     diffAndRender(oldCode: string, newCode: string, container: HTMLElement): HTMLDivElement {
@@ -394,6 +409,7 @@ class Editor {
             fragment.appendChild(span);
         });
         const item = document.createElement('div');
+        item.setAttribute('data-role', 'history-item');
         item.classList.add('card');
         const contentEl = document.createElement('div');
         contentEl.className = 'card-content';
