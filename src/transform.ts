@@ -485,6 +485,68 @@ export function controlFlowFlattening(root: EsNode) {
     }
 }
 
+export function controlFlowFlatteningAll(root: EsNode): boolean {
+    return executeUntil(() => controlFlowFlattening(root));
+}
+
+export function inlineConstants(root: EsNode): boolean {
+    // find all final literal variables.
+    const vars: ESTree.Identifier[] = [];
+    traverse(root, {
+        enter(n: EsNode) {
+            // find literal variable declarators.
+            if (n.type === esprima.Syntax.VariableDeclarator && (n as ESTree.VariableDeclarator).id.type === esprima.Syntax.Identifier && isLiteralLike((n as ESTree.VariableDeclarator).init)) {
+                vars.push((n as ESTree.VariableDeclarator).id as ESTree.Identifier);
+                (this as Controller).skip();
+            }
+        }
+    })
+    if (vars.length === 0) {
+        return false;
+    }
+    let modified = false;
+
+    vars.filter(v => {
+        const scope = closestBlock(v)!;
+        const id = v.name;
+        const value = (v.parent as ESTree.VariableDeclarator).init as ESTree.Literal;
+        if (isFinal(v, scope)) {
+            replace(scope, {
+                leave(n: EsNode) {
+                    if (n !== v && isIdentifierIdentical(n, id)) {
+                        modified = true;
+                        return cloneNode(value, n.parent);
+                    }
+                }
+            });
+            return true;
+        } else {
+            replace(scope, {
+                leave(n: EsNode) {
+                    if (n !== v && isIdentifierIdentical(n, id)) {
+                        if (isFinalUntil(v, scope, n)) {
+                            modified = true;
+                            return cloneNode(value, n.parent);
+                        }
+                    }
+                }
+            });
+            return false;
+        }
+    }).forEach(v => {
+        removeNode(v);
+        modified = true;
+    });
+    return modified;
+}
+
+/**
+ * Run inlineConstants as many times as possible.
+ */
+export function inlineConstantsAll(root: EsNode): boolean {
+    return executeUntil(() => inlineConstants(root));
+}
+
 // TODO: simplify apply call
 /**
  * Remove constant condition flow.

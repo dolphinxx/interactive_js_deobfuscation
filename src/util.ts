@@ -559,3 +559,14 @@ export function simplifyAdditionAndSubtractionOperation(node: ESTree.BinaryExpre
     }
     throw new Error('expect at most one identifier, got ' + list.length);
 }
+
+export function executeUntil(fn: () => boolean, max: number = 10): boolean {
+    let result = false;
+    let i = 0;
+    while (i++ < max) {
+        if (!fn()) {
+            return result;
+        }
+        result = true;
+    }
+}
