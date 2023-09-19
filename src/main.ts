@@ -14,7 +14,6 @@ import './main.scss';
 import {EsNode} from "./global";
 import * as diff from 'diff';
 import {
-    evalConstantExpressions,
     inlineExpression,
     inlineFunction,
     inlineIdentifier,
@@ -25,6 +24,7 @@ import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeI
 import {
     computedToDotAll,
     controlFlowFlatteningAll,
+    evalConstantExpressionsAll,
     hexadecimal,
     inlineConstantsAll,
     simplifyAll,
@@ -232,7 +232,7 @@ class Editor {
             this.renderAst(this.program!);
         });
         this.root.querySelector('#evalConstantBtn')?.addEventListener('click', () => {
-            evalConstantExpressions(this.program!);
+            evalConstantExpressionsAll(this.program!);
             this.renderAst(this.program!);
         });
         this.root.querySelector('#stringArrayTransformBtn')?.addEventListener('click', () => {

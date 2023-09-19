@@ -2,20 +2,20 @@ import {config, expect, use} from 'chai';
 // @ts-ignore
 import chaiDiff from 'chai-diff';
 import {AstTransformer, EsNode} from "../src/global";
-import {evalConstantExpressions,} from "../src/traverse";
+import {
+    computedToDotAll,
+    controlFlowFlatteningAll,
+    evalConstantExpressionsAll,
+    hexadecimal,
+    inlineConstantsAll,
+    simplifyAll,
+    stringArrayTransformations,
+} from "../src/transform";
 import {applyAstParent} from "../src/util";
 import {join} from "path";
 import {readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
-import {
-    computedToDotAll,
-    controlFlowFlatteningAll,
-    hexadecimal,
-    inlineConstantsAll,
-    simplifyAll,
-    stringArrayTransformations
-} from "../src/transform";
 import {Program} from 'estree';
 
 use(chaiDiff);
@@ -86,19 +86,11 @@ export function runTestFile(name: string) {
     stringArrayTransformations(ast);
     controlFlowFlatteningAll(ast);
     inlineConstantsAll(ast);
-    let actual: string = generate(ast, generateOptions).trim();
-    for (let i = 0; i < 10; i++) {
-        evalConstantExpressions(ast);
-        let newCode = generate(ast, generateOptions).trim();
-        if (newCode === actual) {
-            break;
-        }
-        actual = newCode;
-    }
+    evalConstantExpressionsAll(ast);
     simplifyAll(ast);
     computedToDotAll(ast);
     hexadecimal(ast);
-    actual = generate(ast, generateOptions).trim();
+    const actual = generate(ast, generateOptions).trim();
     // console.log(actual);
     expect(actual).to.not.differentFrom(expected);
 }

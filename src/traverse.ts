@@ -5,13 +5,7 @@ import * as esprima from 'esprima';
 import {Controller, replace, traverse} from 'estraverse';
 import {EsNode} from "./global";
 import * as astring from './astring';
-import {
-    applyAstParent,
-    arithmetic,
-    cloneNode,
-    closestBlock,
-    isStringLiteral, newIdentifier, newLiteral
-} from "./util";
+import {applyAstParent, cloneNode, closestBlock} from "./util";
 
 export function evalFunction(node: EsNode): EsNode {
     let code = astring.generate(node);
@@ -220,83 +214,4 @@ export function inlineReference(actual: EsNode, ref: EsNode, root: EsNode) {
             }
         }
     });
-}
-
-export function removeFunctionIfUnused(node: EsNode) {
-    // TODO
-}
-
-export function evalConstantExpressions(root: EsNode) {
-    replace(root, {
-        enter(n: EsNode) {
-            if (n.type === esprima.Syntax.UnaryExpression) {
-                const arg = (n as ESTree.UnaryExpression).argument;
-                if ((n as ESTree.UnaryExpression).operator === '!') {
-                    // !0, !true, !'', ...
-                    if (arg.type === esprima.Syntax.Literal) {
-                        const value = newLiteral(!Boolean((arg as ESTree.Literal).value), n.parent);
-                        globalThis.logDebug('evalConstantExpressions', n, value);
-                        return value;
-                    }
-                    // ![]
-                    if (arg.type === esprima.Syntax.ArrayExpression && (arg as ESTree.ArrayExpression).elements.length === 0) {
-                        const value = newLiteral(false, n.parent);
-                        globalThis.logDebug('evalConstantExpressions', n, value);
-                        return value;
-                    }
-                    return;
-                }
-                if ((n as ESTree.UnaryExpression).operator === 'typeof') {
-                    // typeof 1, typeof true, ...
-                    if (arg.type === esprima.Syntax.Literal) {
-                        const value = newLiteral(typeof (arg as ESTree.Literal).value, n.parent);
-                        globalThis.logDebug('evalConstantExpressions', n, value);
-                        return value;
-                    }
-                    // typeof window
-                    if (arg.type === esprima.Syntax.Identifier && ['window'].indexOf((arg as ESTree.Identifier).name) !== -1) {
-                        const value = newLiteral('object', n.parent);
-                        globalThis.logDebug('evalConstantExpressions', n, value);
-                        return value;
-                    }
-                    // typeof undefined
-                    if (arg.type === esprima.Syntax.Identifier && (arg as ESTree.Identifier).name === 'undefined') {
-                        const value = newLiteral('undefined', n.parent);
-                        globalThis.logDebug('evalConstantExpressions', n, value);
-                        return value;
-                    }
-                }
-            }
-            if (n.type === esprima.Syntax.BinaryExpression) {
-                const b = n as ESTree.BinaryExpression;
-                const operator = b.operator;
-                // literal operation
-                if (b.left.type === esprima.Syntax.Literal && b.right.type === esprima.Syntax.Literal) {
-                    const left = (b.left as ESTree.Literal).value;
-                    const right = (b.right as ESTree.Literal).value;
-                    const value = newLiteral(arithmetic(left, right, operator), n.parent);
-                    globalThis.logDebug('evalConstantExpressions', n, value);
-                    return value;
-                }
-                // same variable comparing
-                if (['==', '==='].indexOf(operator) !== -1 && b.left.type === esprima.Syntax.Identifier && b.right.type === esprima.Syntax.Identifier && (b.left as ESTree.Identifier).name === (b.right as ESTree.Identifier).name) {
-                    const value = newLiteral(true, n.parent);
-                    globalThis.logDebug('evalConstantExpressions', n, value);
-                    return value;
-                }
-                return;
-            }
-            if (n.type === esprima.Syntax.LogicalExpression) {
-                const b = n as ESTree.LogicalExpression;
-                const operator = b.operator;
-                if (b.left.type === esprima.Syntax.Literal && b.right.type === esprima.Syntax.Literal && (operator === '&&' || operator === '||')) {
-                    const left = (b.left as ESTree.Literal).value;
-                    const right = (b.right as ESTree.Literal).value;
-                    const value = newLiteral(operator === '||' ? (left || right) : (left && right), n.parent);
-                    globalThis.logDebug('evalConstantExpressions', n, value);
-                    return value;
-                }
-            }
-        }
-    })
 }

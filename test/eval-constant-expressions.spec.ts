@@ -1,9 +1,9 @@
 import {runTest} from "./test-util";
-import {evalConstantExpressions} from "../src/traverse";
+import {evalConstantExpressions} from "../src/transform";
 
 describe('EvalConstantExpressions', () => {
-   it('eval constant expressions', () => {
-       const input = `var a = 1365;
+    it('eval constant expressions', () => {
+        const input = `var a = 1365;
 var b = '<div\x20class=\x22pop-msg\x22></div>';
 var c = !0;
 var d = !true;
@@ -17,7 +17,7 @@ var k = 2 === 1;
 var l = aa === aa;
 var m = aa === bb;
 `;
-       const expected = `var a = 1365;
+        const expected = `var a = 1365;
 var b = '<div class="pop-msg"></div>';
 var c = true;
 var d = false;
@@ -31,6 +31,6 @@ var k = false;
 var l = true;
 var m = aa === bb;
 `;
-       runTest(input, expected, evalConstantExpressions);
-   });
+        runTest(input, expected, evalConstantExpressions);
+    });
 });

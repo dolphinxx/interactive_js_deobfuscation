@@ -691,6 +691,95 @@ export function computedToDot(root: EsNode): boolean {
     return modified;
 }
 
-export function computedToDotAll(root: EsNode) {
+export function computedToDotAll(root: EsNode): boolean {
     return executeUntil(() => computedToDot(root));
+}
+
+export function evalConstantExpressions(root: EsNode): boolean {
+    let modified = false;
+    replace(root, {
+        enter(n: EsNode) {
+            if (n.type === esprima.Syntax.UnaryExpression) {
+                const arg = (n as ESTree.UnaryExpression).argument;
+                if ((n as ESTree.UnaryExpression).operator === '!') {
+                    // !0, !true, !'', ...
+                    if (arg.type === esprima.Syntax.Literal) {
+                        const value = newLiteral(!Boolean((arg as ESTree.Literal).value), n.parent);
+                        globalThis.logDebug('evalConstantExpressions', n, value);
+                        modified = true;
+                        return value;
+                    }
+                    // ![]
+                    if (arg.type === esprima.Syntax.ArrayExpression && (arg as ESTree.ArrayExpression).elements.length === 0) {
+                        const value = newLiteral(false, n.parent);
+                        globalThis.logDebug('evalConstantExpressions', n, value);
+                        modified = true;
+                        return value;
+                    }
+                    return;
+                }
+                if ((n as ESTree.UnaryExpression).operator === 'typeof') {
+                    // typeof 1, typeof true, ...
+                    if (arg.type === esprima.Syntax.Literal) {
+                        const value = newLiteral(typeof (arg as ESTree.Literal).value, n.parent);
+                        globalThis.logDebug('evalConstantExpressions', n, value);
+                        modified = true;
+                        return value;
+                    }
+                    // typeof window
+                    if (arg.type === esprima.Syntax.Identifier && ['window'].indexOf((arg as ESTree.Identifier).name) !== -1) {
+                        const value = newLiteral('object', n.parent);
+                        globalThis.logDebug('evalConstantExpressions', n, value);
+                        modified = true;
+                        return value;
+                    }
+                    // typeof undefined
+                    if (arg.type === esprima.Syntax.Identifier && (arg as ESTree.Identifier).name === 'undefined') {
+                        const value = newLiteral('undefined', n.parent);
+                        globalThis.logDebug('evalConstantExpressions', n, value);
+                        modified = true;
+                        return value;
+                    }
+                }
+            }
+            if (n.type === esprima.Syntax.BinaryExpression) {
+                const b = n as ESTree.BinaryExpression;
+                const operator = b.operator;
+                // literal operation
+                if (b.left.type === esprima.Syntax.Literal && b.right.type === esprima.Syntax.Literal) {
+                    const left = (b.left as ESTree.Literal).value;
+                    const right = (b.right as ESTree.Literal).value;
+                    const value = newLiteral(arithmetic(left, right, operator), n.parent);
+                    globalThis.logDebug('evalConstantExpressions', n, value);
+                    modified = true;
+                    return value;
+                }
+                // same variable comparing
+                if (['==', '==='].indexOf(operator) !== -1 && b.left.type === esprima.Syntax.Identifier && b.right.type === esprima.Syntax.Identifier && (b.left as ESTree.Identifier).name === (b.right as ESTree.Identifier).name) {
+                    const value = newLiteral(true, n.parent);
+                    globalThis.logDebug('evalConstantExpressions', n, value);
+                    modified = true;
+                    return value;
+                }
+                return;
+            }
+            if (n.type === esprima.Syntax.LogicalExpression) {
+                const b = n as ESTree.LogicalExpression;
+                const operator = b.operator;
+                if (b.left.type === esprima.Syntax.Literal && b.right.type === esprima.Syntax.Literal && (operator === '&&' || operator === '||')) {
+                    const left = (b.left as ESTree.Literal).value;
+                    const right = (b.right as ESTree.Literal).value;
+                    const value = newLiteral(operator === '||' ? (left || right) : (left && right), n.parent);
+                    globalThis.logDebug('evalConstantExpressions', n, value);
+                    modified = true;
+                    return value;
+                }
+            }
+        }
+    });
+    return modified;
+}
+
+export function evalConstantExpressionsAll(root: EsNode): boolean {
+    return executeUntil(() => evalConstantExpressions(root));
 }
