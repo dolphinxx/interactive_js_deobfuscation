@@ -19,12 +19,15 @@ import {
     isFinalUntil,
     isIdentifierIdentical,
     isIdentifierReferenced,
+    isIdOfParent,
     isLiteral,
     isLiteralEquals,
     isLiteralLike,
     isNameEquals,
     isNumber,
     isStringLiteral,
+    isValidVariableId,
+    newIdentifier,
     newLiteral,
     newThrow,
     removeIdentifierIfUnused,
@@ -518,7 +521,7 @@ export function inlineConstants(root: EsNode): boolean {
         if (isFinal(v, scope)) {
             replace(scope, {
                 leave(n: EsNode) {
-                    if (n !== v && isIdentifierIdentical(n, id)) {
+                    if (n !== v && isIdentifierIdentical(n, id) && !isIdOfParent(n as ESTree.Identifier)) {
                         modified = true;
                         return cloneNode(value, n.parent);
                     }
@@ -528,7 +531,7 @@ export function inlineConstants(root: EsNode): boolean {
         } else {
             replace(scope, {
                 leave(n: EsNode) {
-                    if (n !== v && isIdentifierIdentical(n, id)) {
+                    if (n !== v && isIdentifierIdentical(n, id) && !isIdOfParent(n as ESTree.Identifier)) {
                         if (isFinalUntil(v, scope, n)) {
                             modified = true;
                             return cloneNode(value, n.parent);
@@ -539,7 +542,10 @@ export function inlineConstants(root: EsNode): boolean {
             return false;
         }
     }).forEach(v => {
-        removeNode(v);
+        // keep root variables
+        if (closestBlock(v)?.type != esprima.Syntax.Program) {
+            removeNode(v);
+        }
         modified = true;
     });
     return modified;

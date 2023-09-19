@@ -645,3 +645,94 @@ export function executeUntil(fn: () => boolean, max: number = 10): boolean {
         result = true;
     }
 }
+
+/**
+ * Only consider ASCII characters.
+ */
+export const variablePattern = /^[$_a-zA-Z][$_a-zA-Z\d]*$/;
+/**
+ * <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords">JavaScript Keywords</a>
+ */
+const reservedKeywords = [
+    // # Reserved words
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    // ## in strict mode
+    "let",
+    "static",
+    "yield",
+    // ## in module code or async function
+    "await",
+    // # Future reserved words
+    "enum",
+    // ## in strict mode
+    "implements",
+    "interface",
+    "package",
+    "private",
+    "protected",
+    "public",
+    // ## Future reserved words in older standards
+    "abstract",
+    "boolean",
+    "byte",
+    "char",
+    "double",
+    "final",
+    "float",
+    "goto",
+    "int",
+    "long",
+    "native",
+    "short",
+    "synchronized",
+    "throws",
+    "transient",
+    "volatile",
+    // # Identifiers with special meanings
+    "arguments",
+    "as",
+    "async",
+    "eval",
+    "from",
+    "get",
+    "of",
+    "set"
+];
+
+export function isValidVariableId(id: string): boolean {
+    return !reservedKeywords.includes(id) && variablePattern.test(id);
+}
