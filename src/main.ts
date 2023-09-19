@@ -14,7 +14,6 @@ import './main.scss';
 import {EsNode} from "./global";
 import * as diff from 'diff';
 import {
-    computedToDot,
     evalConstantExpressions,
     inlineExpression,
     inlineFunction,
@@ -24,6 +23,7 @@ import {
 } from "./traverse";
 import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
 import {
+    computedToDotAll,
     controlFlowFlatteningAll,
     hexadecimal,
     inlineConstantsAll,
@@ -244,7 +244,7 @@ class Editor {
             this.renderAst(this.program!);
         });
         this.root.querySelector('#computedToDotBtn')?.addEventListener('click', () => {
-            computedToDot(this.program!);
+            computedToDotAll(this.program!);
             this.renderAst(this.program!);
         });
         this.root.querySelector('#controlFlowFlatteningBtn')?.addEventListener('click', () => {

@@ -1,5 +1,5 @@
 import {runTest} from "./test-util";
-import {computedToDot} from "../src/traverse";
+import {computedToDot} from "../src/transform";
 
 describe('ComputedToDot', () => {
     it('computed to dot', () => {

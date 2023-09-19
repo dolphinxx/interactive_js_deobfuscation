@@ -664,4 +664,33 @@ export function simplifyAll(root: EsNode): boolean {
     return executeUntil(() => simplify(root));
 }
 
+/**
+ * convert computed string literal member expression to dot expression
+ * @param root
+ */
+export function computedToDot(root: EsNode): boolean {
+    let modified = false;
+    replace(root, {
+        leave(n: EsNode) {
+            if (n.type === esprima.Syntax.MemberExpression && (n as ESTree.MemberExpression).computed && isStringLiteral((n as ESTree.MemberExpression).property) && isValidVariableId(((n as ESTree.MemberExpression).property as ESTree.Literal).value as string)) {
+                const m = n as ESTree.MemberExpression;
+                m.computed = false;
+                m.property = newIdentifier((m.property as ESTree.Literal).value as string, m);
+                modified = true;
+                return;
+            }
+            if (n.type === esprima.Syntax.MethodDefinition && (n as ESTree.MethodDefinition).computed && isStringLiteral((n as ESTree.MethodDefinition).key) && isValidVariableId(((n as ESTree.MethodDefinition).key as ESTree.Literal).value as string)) {
+                const m = n as ESTree.MethodDefinition;
+                m.computed = false;
+                m.key = newIdentifier((m.key as ESTree.Literal).value as string, m);
+                modified = true;
+                return;
+            }
+        }
+    });
+    return modified;
+}
 
+export function computedToDotAll(root: EsNode) {
+    return executeUntil(() => computedToDot(root));
+}

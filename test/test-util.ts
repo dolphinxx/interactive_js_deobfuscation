@@ -2,13 +2,14 @@ import {config, expect, use} from 'chai';
 // @ts-ignore
 import chaiDiff from 'chai-diff';
 import {AstTransformer, EsNode} from "../src/global";
-import {computedToDot, evalConstantExpressions,} from "../src/traverse";
+import {evalConstantExpressions,} from "../src/traverse";
 import {applyAstParent} from "../src/util";
 import {join} from "path";
 import {readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
 import {
+    computedToDotAll,
     controlFlowFlatteningAll,
     hexadecimal,
     inlineConstantsAll,
@@ -95,7 +96,7 @@ export function runTestFile(name: string) {
         actual = newCode;
     }
     simplifyAll(ast);
-    computedToDot(ast);
+    computedToDotAll(ast);
     hexadecimal(ast);
     actual = generate(ast, generateOptions).trim();
     // console.log(actual);
