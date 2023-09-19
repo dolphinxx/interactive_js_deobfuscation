@@ -23,7 +23,13 @@ import {
     inlineReference,
 } from "./traverse";
 import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
-import {controlFlowFlatteningAll, hexadecimal, simplifyAll, stringArrayTransformations} from "./transform";
+import {
+    controlFlowFlatteningAll,
+    hexadecimal,
+    inlineConstantsAll,
+    simplifyAll,
+    stringArrayTransformations
+} from "./transform";
 
 globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 
@@ -102,6 +108,8 @@ class Editor {
     editorEl: HTMLElement;
     selectionEl: HTMLElement;
     historyEl: HTMLElement;
+    sourceDiffEl: HTMLElement;
+    sourceInput: HTMLTextAreaElement;
     _active?: HTMLElement;
     _nodeIdHolder: NodeIdHolder;
     _code?: string;
@@ -118,6 +126,8 @@ class Editor {
         this.editorEl = this.root.querySelector('#editor') as HTMLElement;
         this.selectionEl = this.root.querySelector('#selection') as HTMLElement;
         this.historyEl = this.root.querySelector('#history') as HTMLElement;
+        this.sourceDiffEl = this.root.querySelector('#sourceDiff') as HTMLElement;
+        this.sourceInput = this.root.querySelector('#source') as HTMLTextAreaElement;
         this.init();
     }
 
@@ -126,7 +136,6 @@ class Editor {
         inlineBtn.disabled = true;
         const removeBtn = this.root.querySelector('#removeBtn') as HTMLButtonElement;
         removeBtn.disabled = true;
-        const evalInput = this.root.querySelector('#evalInput') as HTMLTextAreaElement;
         this.editorEl.setAttribute('spellcheck', 'false');
         this.editorEl.setAttribute('autocorrect', 'off');
         this.editorEl.setAttribute('autocapitalize', 'off');
@@ -182,6 +191,9 @@ class Editor {
         // })
         this.root.querySelector('#refreshBtn')?.addEventListener('click', () => {
             this.refresh();
+        });
+        this.root.querySelector('#diffSourceBtn')?.addEventListener('click', () => {
+            this.diffSource();
         });
         removeBtn.addEventListener('click', () => {
             const node = this._nodeIdHolder.node(this._active?.getAttribute('data-nid')!) as ESTree.Identifier;
@@ -239,6 +251,10 @@ class Editor {
             controlFlowFlatteningAll(this.program!);
             this.renderAst(this.program!);
         });
+        this.root.querySelector('#inlineConstantsBtn')?.addEventListener('click', () => {
+            inlineConstantsAll(this.program!);
+            this.renderAst(this.program!);
+        });
     }
 
     wrapNode(code: string, clazz: string, node: EsNode) {
@@ -281,6 +297,8 @@ class Editor {
                 return this.wrapNode(code, highlight ? nodeCssClasses.identity : '', node);
             }
             case esprima.Syntax.ThisExpression:
+            case esprima.Syntax.Super:
+            case esprima.Syntax.ClassDeclaration:
             case esprima.Syntax.DebuggerStatement: {
                 return this.wrapNode(code, nodeCssClasses.keyword, node);
             }
@@ -330,7 +348,7 @@ class Editor {
         const result = '<div class="ͼline">' + (astCode.endsWith(lineSeparator) ? astCode.substring(0, astCode.length - lineSeparator.length) : astCode) + '</div>';
         // console.log(result);
         this.editorEl.innerHTML = result;
-        const newCode = this.editorEl.innerText;
+        const newCode = this.editorEl.innerText.trim();
         if (newCode !== this._code) {
             if (this._code) {
                 // this._history.push(this._code);
@@ -340,9 +358,29 @@ class Editor {
         }
     }
 
+    diffSource() {
+        if (this.sourceInput.value.trim().length > 0) {
+            const newCode = astring.generate(acorn.parse(this.sourceInput.value.trim(), {ecmaVersion: 'latest'}) as ESTree.Node, {indent: '    ',}).trim();
+            this.diffAndRender(newCode, this.editorEl.innerText.trim(), this.sourceDiffEl);
+        }
+    }
+
     addHistory(oldCode: string, newCode: string) {
         const id = new Date().getTime() + '' + Math.trunc(Math.random() * 1000);
         this._history[id] = oldCode;
+        const item = this.diffAndRender(oldCode, newCode, this.historyEl);
+        item.setAttribute('data-id', id);
+        const footerEl = document.createElement('footer');
+        footerEl.className = 'card-footer';
+        const applyBtn = document.createElement('button');
+        applyBtn.classList.add('card-footer-item');
+        applyBtn.setAttribute('data-role', 'apply');
+        applyBtn.innerText = 'Apply';
+        footerEl.appendChild(applyBtn);
+        item.appendChild(footerEl);
+    }
+
+    diffAndRender(oldCode: string, newCode: string, container: HTMLElement): HTMLDivElement {
         const diffResult = diff.diffLines(oldCode, newCode);
         const fragment = document.createDocumentFragment();
         let span: HTMLSpanElement;
@@ -357,20 +395,12 @@ class Editor {
         });
         const item = document.createElement('div');
         item.classList.add('card');
-        item.setAttribute('data-id', id);
         const contentEl = document.createElement('div');
         contentEl.className = 'card-content';
         contentEl.append(fragment);
         item.appendChild(contentEl);
-        const footerEl = document.createElement('footer');
-        footerEl.className = 'card-footer';
-        const applyBtn = document.createElement('button');
-        applyBtn.classList.add('card-footer-item');
-        applyBtn.setAttribute('data-role', 'apply');
-        applyBtn.innerText = 'Apply';
-        footerEl.appendChild(applyBtn);
-        item.appendChild(footerEl);
-        this.historyEl.appendChild(item);
+        container.appendChild(item);
+        return item;
     }
 
     setValue(code: string) {

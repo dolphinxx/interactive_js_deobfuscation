@@ -14,13 +14,14 @@
                 <div id="editor" contenteditable="true"></div>
                 <div>
                     <button id="refreshBtn" class="button">Refresh</button>
+                    <button id="diffSourceBtn" class="button">Diff Source</button>
                 </div>
             </div>
         </div>
         <div class="column is-4" style="min-height: 100vh">
             <div id="selection"></div>
             <div>
-                <textarea id="evalInput" class="textarea" placeholder="Eval Input"></textarea>
+                <textarea id="source" class="textarea" placeholder="Source code for diff"></textarea>
             </div>
             <div class="toolbar">
                 <div>Run any time</div>
@@ -29,6 +30,7 @@
                 <button id="evalConstantBtn" class="button" title="Eval constant expressions">Eval Constant</button>
                 <button id="hexadecimalBtn" class="button" title="Hexadecimal">Hexadecimal</button>
                 <button id="simplifyBtn" class="button" title="Simplify constant condition">Simplify</button>
+                <button id="inlineConstantsBtn" class="button" title="Inline constants">Inline Constants</button>
             </div>
             <div class="toolbar">
                 <div>Run in order</div>
@@ -38,6 +40,7 @@
             </div>
         </div>
     </div>
+    <div id="sourceDiff"></div>
     <div id="history">
 
     </div>
