@@ -6,22 +6,29 @@ import {Controller, replace, traverse} from 'estraverse';
 import {EsNode} from "./global";
 import * as astring from './astring';
 import {
-    arithmetic, binaryOperate,
+    arithmetic,
+    binaryOperate,
     cloneNode,
     closestBlock,
     evaluate,
+    executeUntil,
     getKey,
-    getRemovableParentNode, isEmptyBlockOrStatement,
+    getRemovableParentNode,
+    isEmptyBlockOrStatement,
     isFinal,
+    isFinalUntil,
     isIdentifierIdentical,
-    isIdentifierReferenced, isLiteral,
+    isIdentifierReferenced,
+    isLiteral,
     isLiteralEquals,
     isLiteralLike,
     isNameEquals,
     isNumber,
     isStringLiteral,
-    newLiteral, newThrow,
+    newLiteral,
+    newThrow,
     removeIdentifierIfUnused,
+    removeNode,
     replaceIdentifiers,
     unary
 } from "./util";
@@ -39,11 +46,7 @@ export function stringArrayTransformations(root: EsNode) {
         return;
     }
 
-    for(let i = 0;i < 10;i++) {
-        if(!stringArrayCallsTransform(root)) {
-            break;
-        }
-    }
+    stringArrayCallsTransformAll(root);
 
     const rootBody: ESTree.Statement[] = (root as { body?: ESTree.Statement[] })!.body!;
 
@@ -87,12 +90,7 @@ export function stringArrayTransformations(root: EsNode) {
         return ${decodeFnId}
     }())`) as Function;
 
-    for(let i = 0;i < 5;i++) {
-        if(!stringArrayFunctionWrappers(decodeFnId, root)) {
-            break;
-        }
-    }
-    console.log(astring.generate(root));
+    stringArrayFunctionWrappersAll(decodeFnId, root);
 
     // collect refers to the decodeFn
     const alias: string[] = [decodeFnId];
@@ -144,11 +142,7 @@ export function stringArrayTransformations(root: EsNode) {
             }
         }
     });
-    for(let i = 0;i < 10;i++) {
-        if(!stringArrayCallsTransform(root)) {
-            break;
-        }
-    }
+    stringArrayCallsTransformAll(root);
 }
 
 type ParamsAndReturn = {
@@ -160,7 +154,7 @@ type ParamsAndReturn = {
  * String Array Calls Transform
  * @param root
  */
-export function stringArrayCallsTransform(root: EsNode):boolean {
+export function stringArrayCallsTransform(root: EsNode): boolean {
     // Find the map
     const hashes: { scope: EsNode, node: ESTree.VariableDeclarator, id: string, props: { [key: string]: EsNode | ParamsAndReturn } }[] = [];
     traverse(root, {
@@ -213,7 +207,7 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
             }
         }
     });
-    if(hashes.length === 0) {
+    if (hashes.length === 0) {
         return false;
     }
     let modified = false;
@@ -223,7 +217,7 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
                 // find the call expression
                 if (n.type === esprima.Syntax.CallExpression && (n as ESTree.CallExpression).callee.type === esprima.Syntax.MemberExpression && isIdentifierIdentical(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).object, h.id)) {
                     const propName = getKey(((n as ESTree.CallExpression).callee as ESTree.MemberExpression).property);
-                    if(typeof propName !== 'string') {
+                    if (typeof propName !== 'string') {
                         return;
                     }
                     if (Object.hasOwnProperty.call(h.props, propName)) {
@@ -235,7 +229,7 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
                         })
                         // replace identifiers in the returning expression with the call arguments.
                         replaceIdentifiers(funcBodyExpr, paramsMap);
-                        if(funcBodyExpr.type === esprima.Syntax.BinaryExpression && isLiteralLike(funcBodyExpr)) {
+                        if (funcBodyExpr.type === esprima.Syntax.BinaryExpression && isLiteralLike(funcBodyExpr)) {
                             funcBodyExpr = newLiteral(binaryOperate((funcBodyExpr as ESTree.BinaryExpression).left, (funcBodyExpr as ESTree.BinaryExpression).right, (funcBodyExpr as ESTree.BinaryExpression).operator), n.parent);
                         }
                         modified = true;
@@ -245,17 +239,17 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
                 }
                 // find the member expressions
                 if (n.type === esprima.Syntax.MemberExpression && isIdentifierIdentical((n as ESTree.MemberExpression).object, h.id) && ((n as ESTree.MemberExpression).property.type === esprima.Syntax.Identifier || isStringLiteral((n as ESTree.MemberExpression).property))) {
-                    if(n.parent?.type === esprima.Syntax.CallExpression && (n.parent as ESTree.CallExpression).callee === n) {
+                    if (n.parent?.type === esprima.Syntax.CallExpression && (n.parent as ESTree.CallExpression).callee === n) {
                         // leave to the CallExpression handler.
                         return;
                     }
                     const propName = getKey((n as ESTree.MemberExpression).property);
-                    if(typeof propName !== 'string') {
+                    if (typeof propName !== 'string') {
                         return;
                     }
                     if (Object.hasOwnProperty.call(h.props, propName)) {
                         const propVal = h.props[propName];
-                        if(Object.hasOwnProperty.call(propVal, 'rt')) {
+                        if (Object.hasOwnProperty.call(propVal, 'rt')) {
                             // passed as function, handle it next time
                             return;
                         }
@@ -290,15 +284,19 @@ export function stringArrayCallsTransform(root: EsNode):boolean {
     return modified;
 }
 
+export function stringArrayCallsTransformAll(root: EsNode): boolean {
+    return executeUntil(() => stringArrayCallsTransform(root));
+}
+
 /**
  * String Array Wrappers Type = Function
  * @param decodeFnId the id of the string array decoding function
  * @param root the root node
  */
-function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode):boolean {
+function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode): boolean {
     // Collect the functions
     const functions: ESTree.FunctionDeclaration[] = findStringArrayFunctionWrappers(decodeFnId, root);
-    if(functions.length === 0) {
+    if (functions.length === 0) {
         return false;
     }
     let modified = false;
@@ -332,11 +330,15 @@ function stringArrayFunctionWrappers(decodeFnId: string, root: EsNode):boolean {
                 }
             }
         });
-        if(removeIdentifierIfUnused(fn.id!, scope)) {
+        if (removeIdentifierIfUnused(fn.id!, scope)) {
             modified = true;
         }
     }
     return modified;
+}
+
+function stringArrayFunctionWrappersAll(decodeFnId: string, root: EsNode): boolean {
+    return executeUntil(() => stringArrayFunctionWrappers(decodeFnId, root));
 }
 
 /**
@@ -375,7 +377,7 @@ export function hexadecimal(root: EsNode) {
  * </pre>
  * @param root
  */
-export function controlFlowFlattening(root: EsNode) {
+export function controlFlowFlattening(root: EsNode): boolean {
     // collect
     const scopes: ESTree.BlockStatement[] = [];
     const data: { cases: ESTree.SwitchCase[], flow: string[], removables: EsNode[], whileStmt: ESTree.WhileStatement }[] = [];
@@ -451,9 +453,10 @@ export function controlFlowFlattening(root: EsNode) {
         }
     });
     if (scopes.length === 0) {
-        return;
+        return false;
     }
 
+    let modified = false;
     for (let i = 0; i < scopes.length; i++) {
         const scope = scopes[i];
         const {cases, flow, removables, whileStmt} = data[i];
@@ -469,6 +472,7 @@ export function controlFlowFlattening(root: EsNode) {
         }).flat();
         // // replace the WhileStatement with sorted statements.
         scope.body.splice(scope.body.indexOf(whileStmt), 1, ...replacement);
+        modified = true;
         // remove the removable variable declarations
         replace(scope, {
             enter(n: EsNode) {
@@ -483,6 +487,7 @@ export function controlFlowFlattening(root: EsNode) {
             }
         });
     }
+    return modified;
 }
 
 export function controlFlowFlatteningAll(root: EsNode): boolean {
@@ -553,7 +558,8 @@ export function inlineConstantsAll(root: EsNode): boolean {
  *
  * @param root
  */
-export function simplify(root: EsNode) {
+export function simplify(root: EsNode): boolean {
+    let modified = false;
     // constant condition
     replace(root, {
         leave(n: EsNode) {
@@ -563,12 +569,15 @@ export function simplify(root: EsNode) {
                 if (isLiteral(stmt.test)) {
                     const testVal = (stmt.test as ESTree.Literal).value;
                     if (testVal) {// true
+                        modified = true;
                         return cloneNode(stmt.consequent, n.parent);
                     } else {// false
                         if (stmt.alternate) {
+                            modified = true;
                             return cloneNode(stmt.alternate, n.parent);
                         }
                         globalThis.logDebug('simplify', n);
+                        modified = true;
                         (this as Controller).remove();
                         return;
                     }
@@ -584,11 +593,13 @@ export function simplify(root: EsNode) {
                         // empty body
                         if (isEmptyBlockOrStatement(stmt.body)) {
                             globalThis.logDebug('simplify', n);
+                            modified = true;
                             // should never enter, so throw an exception
                             return newThrow('infinity loop', n.parent);
                         }
                     } else {// always false
                         globalThis.logDebug('simplify', n);
+                        modified = true;
                         (this as Controller).remove();
                     }
                 }
@@ -603,6 +614,7 @@ export function simplify(root: EsNode) {
                         // empty body
                         if (isEmptyBlockOrStatement(stmt.body)) {
                             globalThis.logDebug('simplify', n);
+                            modified = true;
                             // should never enter, so throw an exception
                             return newThrow('infinity loop', n.parent);
                         }
@@ -610,9 +622,11 @@ export function simplify(root: EsNode) {
                         globalThis.logDebug('simplify', n);
                         // empty body
                         if (isEmptyBlockOrStatement(stmt.body)) {
+                            modified = true;
                             (this as Controller).remove();
                             return;
                         }
+                        modified = true;
                         // run single time
                         return cloneNode(stmt.body, n.parent);
                     }
@@ -626,13 +640,22 @@ export function simplify(root: EsNode) {
                     const testVal = (stmt.test as ESTree.Literal).value;
                     globalThis.logDebug('simplify', n);
                     if (testVal) {// true
+                        modified = true;
                         return cloneNode(stmt.consequent, n.parent);
                     } else {// false
+                        modified = true;
                         return cloneNode(stmt.alternate, n.parent);
                     }
                 }
                 return;
             }
         }
-    })
+    });
+    return modified;
 }
+
+export function simplifyAll(root: EsNode): boolean {
+    return executeUntil(() => simplify(root));
+}
+
+

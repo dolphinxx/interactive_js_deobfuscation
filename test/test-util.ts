@@ -1,20 +1,17 @@
 import {config, expect, use} from 'chai';
 // @ts-ignore
 import chaiDiff from 'chai-diff';
-
-use(chaiDiff);
 import {AstTransformer, EsNode} from "../src/global";
-import {
-    computedToDot,
-    evalConstantExpressions,
-} from "../src/traverse";
+import {computedToDot, evalConstantExpressions,} from "../src/traverse";
 import {applyAstParent} from "../src/util";
 import {join} from "path";
 import {readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
-import {hexadecimal, stringArrayTransformations, simplify} from "../src/transform";
+import {hexadecimal, simplifyAll, stringArrayTransformations} from "../src/transform";
 import {Program} from 'estree';
+
+use(chaiDiff);
 
 // globalThis.logDebug = (...msg:string[]) => console.log(...msg);
 // suppress log
@@ -89,13 +86,8 @@ export function runTestFile(name: string) {
         }
         actual = newCode;
     }
-    for (let i = 0; i < 10; i++) {
-        simplify(ast);
-        let newCode = generate(ast, generateOptions).trim();
-        if (newCode === actual) {
-            break;
-        }
-        actual = newCode;
+    if (simplifyAll(ast)) {
+        actual = generate(ast, generateOptions).trim();
     }
     computedToDot(ast);
     hexadecimal(ast);

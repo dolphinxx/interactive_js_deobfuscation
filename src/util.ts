@@ -158,6 +158,20 @@ export function closestBlock(node: EsNode): EsNode | null {
     return closest(node, [esprima.Syntax.Program, esprima.Syntax.BlockStatement, esprima.Syntax.SwitchCase]);
 }
 
+export function findDeclarator(name: string, scope: EsNode): ESTree.VariableDeclarator | null {
+    let result: ESTree.VariableDeclarator | null = null;
+    traverse(scope, {
+        enter(n: EsNode) {
+            if (n.type === esprima.Syntax.VariableDeclarator && isIdentifierIdentical((n as ESTree.VariableDeclarator).id, name)) {
+                result = n as ESTree.VariableDeclarator;
+                (this as Controller).break();
+                return;
+            }
+        }
+    });
+    return result;
+}
+
 export function applyAstParent(node: ESTree.Node) {
     traverse(node, {
         enter(node: EsNode, parent) {
@@ -343,7 +357,7 @@ export function isIdentifierReferenced(node: EsNode, root: EsNode): boolean {
  */
 export function isFinal(id: ESTree.Identifier, root: ESTree.Node | null): boolean {
     if (root == null) {
-        return true;
+        return false;
     }
     const name = id.name;
     let reassigned = false;
@@ -364,6 +378,45 @@ export function isFinal(id: ESTree.Identifier, root: ESTree.Node | null): boolea
     return !reassigned;
 }
 
+/**
+ * check whether the identifier has been reassigned
+ * @param id
+ * @param root
+ * @param end
+ */
+export function isFinalUntil(id: ESTree.Identifier, root: ESTree.Node | null, end: EsNode): boolean {
+    if (root == null) {
+        return false;
+    }
+    const name = id.name;
+    let reassigned = false;
+    traverse(root, {
+        enter(n: EsNode) {
+            if (n === end || reassigned) {
+                (this as Controller).break();
+                return;
+            }
+            if (n.type === esprima.Syntax.AssignmentExpression) {
+                if (isIdentifierIdentical((n as ESTree.AssignmentExpression).left, name)) {
+                    reassigned = true;
+                }
+                return;
+            }
+        }
+    });
+    return !reassigned;
+}
+
+export function isIdentifierOrLiteralOfType(node: EsNode, type: LiteralTypes): boolean {
+    if (node.type === esprima.Syntax.Identifier) {
+        return true;
+    }
+    if (node.type === esprima.Syntax.Literal) {
+        return typeof (node as ESTree.Literal).value === type;
+    }
+    return false;
+}
+
 export function getRemovableParentNode(node: EsNode): EsNode {
     let result = node;
 
@@ -382,6 +435,28 @@ export function getRemovableParentNode(node: EsNode): EsNode {
     return result;
 }
 
+/**
+ * Remove node without usage check
+ * @param node
+ */
+export function removeNode(node: ESTree.Identifier): boolean {
+    const toRemove = getRemovableParentNode(node);
+    let done = false;
+    replace(toRemove.parent!, {
+        enter(n: EsNode) {
+            if (done) {
+                (this as Controller).break();
+                return;
+            }
+            if (n === toRemove) {
+                done = true;
+                (this as Controller).remove();
+            }
+        }
+    });
+    return done;
+}
+
 export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null): boolean {
     if (!scope) {
         scope = closestBlock(node);
@@ -392,7 +467,7 @@ export function removeIdentifierIfUnused(node: EsNode, scope?: EsNode | null): b
     }
     const toRemove = getRemovableParentNode(node);
     let done = false;
-    replace(scope!, {
+    replace(toRemove.parent!, {
         enter(n: EsNode) {
             if (done) {
                 (this as Controller).break();
@@ -515,10 +590,10 @@ function flattenAdditionAndSubtractionOperation(node: EsNode, positive: boolean,
  */
 export function simplifyAdditionAndSubtractionOperation(node: ESTree.BinaryExpression): ESTree.Expression {
     // fast skip
-    if(node.left.type === esprima.Syntax.Identifier && (node.right.type === esprima.Syntax.Literal || (node.right.type === esprima.Syntax.UnaryExpression && node.right.argument.type === esprima.Syntax.Literal))) {
+    if (node.left.type === esprima.Syntax.Identifier && (node.right.type === esprima.Syntax.Literal || (node.right.type === esprima.Syntax.UnaryExpression && node.right.argument.type === esprima.Syntax.Literal))) {
         return node;
     }
-    if(node.right.type === esprima.Syntax.Identifier && (node.left.type === esprima.Syntax.Literal || (node.left.type === esprima.Syntax.UnaryExpression && node.left.argument.type === esprima.Syntax.Literal))) {
+    if (node.right.type === esprima.Syntax.Identifier && (node.left.type === esprima.Syntax.Literal || (node.left.type === esprima.Syntax.UnaryExpression && node.left.argument.type === esprima.Syntax.Literal))) {
         return node;
     }
     let list: { positive: boolean, val: number | ESTree.Identifier, isNum: boolean, score: number }[] = [];

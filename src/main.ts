@@ -23,7 +23,7 @@ import {
     inlineReference,
 } from "./traverse";
 import {applyAstParent, closestBlock, findIdentifierUsage, isIdOfParent, removeIdentifierIfUnused} from "./util";
-import {controlFlowFlattening, stringArrayTransformations, simplify, hexadecimal} from "./transform";
+import {controlFlowFlatteningAll, hexadecimal, simplifyAll, stringArrayTransformations} from "./transform";
 
 globalThis.logDebug = (...msg: any[]) => console.log(...msg);
 
@@ -228,7 +228,7 @@ class Editor {
             this.renderAst(this.program!);
         });
         this.root.querySelector('#simplifyBtn')?.addEventListener('click', () => {
-            simplify(this.program!);
+            simplifyAll(this.program!);
             this.renderAst(this.program!);
         });
         this.root.querySelector('#computedToDotBtn')?.addEventListener('click', () => {
@@ -236,7 +236,7 @@ class Editor {
             this.renderAst(this.program!);
         });
         this.root.querySelector('#controlFlowFlatteningBtn')?.addEventListener('click', () => {
-            controlFlowFlattening(this.program!);
+            controlFlowFlatteningAll(this.program!);
             this.renderAst(this.program!);
         });
     }
