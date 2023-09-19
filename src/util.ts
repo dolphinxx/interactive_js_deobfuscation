@@ -547,7 +547,7 @@ export function isIdOfParent(node: ESTree.Identifier): boolean {
     //     return true;
     // }
     // return false;
-    return (node as { id?: any }).id === node;
+    return (node.parent as { id?: any }).id === node;
 }
 
 function flattenAdditionAndSubtractionOperation(node: EsNode, positive: boolean, result: { positive: boolean, val: number | ESTree.Identifier, isNum: boolean, score: number }[]): void {
