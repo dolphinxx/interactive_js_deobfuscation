@@ -8,7 +8,13 @@ import {join} from "path";
 import {readFileSync} from "fs";
 import {parse} from "acorn";
 import {generate} from "../src/astring";
-import {hexadecimal, simplifyAll, stringArrayTransformations} from "../src/transform";
+import {
+    controlFlowFlatteningAll,
+    hexadecimal,
+    inlineConstantsAll,
+    simplifyAll,
+    stringArrayTransformations
+} from "../src/transform";
 import {Program} from 'estree';
 
 use(chaiDiff);
@@ -77,6 +83,8 @@ export function runTestFile(name: string) {
     const expected = cleanExpected(readFileSync(expectedFile, {encoding: 'utf-8'}));
     const ast = prepareAst(readFileSync(join(__dirname, `${name}.input.txt`), {encoding: 'utf-8'}));
     stringArrayTransformations(ast);
+    controlFlowFlatteningAll(ast);
+    inlineConstantsAll(ast);
     let actual: string = generate(ast, generateOptions).trim();
     for (let i = 0; i < 10; i++) {
         evalConstantExpressions(ast);
@@ -86,9 +94,7 @@ export function runTestFile(name: string) {
         }
         actual = newCode;
     }
-    if (simplifyAll(ast)) {
-        actual = generate(ast, generateOptions).trim();
-    }
+    simplifyAll(ast);
     computedToDot(ast);
     hexadecimal(ast);
     actual = generate(ast, generateOptions).trim();

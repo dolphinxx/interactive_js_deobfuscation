@@ -1,0 +1,176 @@
+(function(_0xf89a7e, _0x55f4ed) {
+    typeof exports === 'object' && typeof module !== "undefined" ? module.exports = _0x55f4ed(require("./base-component.js"), require("./dom/event-handler.js"), require("./dom/selector-engine.js"), require("./util/backdrop.js"), require("./util/component-functions.js"), require("./util/focustrap.js"), require("./util/index.js"), require("./util/scrollbar.js")) : typeof define === "function" && define.amd ? define(["./base-component", "./dom/event-handler", "./dom/selector-engine", "./util/backdrop", "./util/component-functions", "./util/focustrap", "./util/index", "./util/scrollbar"], _0x55f4ed) : (_0xf89a7e = typeof globalThis !== "undefined" ? globalThis : _0xf89a7e || self, _0xf89a7e.Offcanvas = _0x55f4ed(_0xf89a7e.BaseComponent, _0xf89a7e.EventHandler, _0xf89a7e.SelectorEngine, _0xf89a7e.Backdrop, _0xf89a7e.ComponentFunctions, _0xf89a7e.Focustrap, _0xf89a7e.Index, _0xf89a7e.Scrollbar));
+})(this, function(_0x27217a, _0x4ae6b6, _0x520737, _0x5b24f2, _0x2e81d7, _0xf1de2d, _0x2169f1, _0x2aedd3) {
+    'use strict';
+    const _0x2ecc7f = {
+        'backdrop': true,
+        'keyboard': true,
+        'scroll': false
+    };
+    const _0xabac28 = {
+        'backdrop': "(boolean|string)",
+        'keyboard': 'boolean',
+        'scroll': "boolean"
+    };
+    class _0xed96f0 extends _0x27217a {
+        constructor(_0x4b479b, _0x11eb26) {
+            super(_0x4b479b, _0x11eb26);
+            this._isShown = false;
+            this._backdrop = this._initializeBackDrop();
+            this._focustrap = this._initializeFocusTrap();
+            this._addEventListeners();
+        }
+        static get Default() {
+            return _0x2ecc7f;
+        }
+        static get DefaultType() {
+            return _0xabac28;
+        }
+        static get NAME() {
+            return "offcanvas";
+        }
+        toggle(_0xca5f14) {
+            return this._isShown ? this.hide() : this.show(_0xca5f14);
+        }
+        show(_0x5e4a52) {
+            if (this._isShown) {
+                return;
+            }
+            const _0x321366 = _0x4ae6b6.trigger(this._element, "show.bs.offcanvas", {
+                'relatedTarget': _0x5e4a52
+            });
+            if (_0x321366.defaultPrevented) {
+                return;
+            }
+            this._isShown = true;
+            this._backdrop.show();
+            if (!this._config.scroll) {
+                new _0x2aedd3().hide();
+            }
+            this._element.setAttribute("aria-modal", true);
+            this._element.setAttribute("role", "dialog");
+            this._element.classList.add('showing');
+            const _0x4dcd51 = () => {
+                if (!this._config.scroll || this._config.backdrop) {
+                    this._focustrap.activate();
+                }
+                this._element.classList.add('show');
+                this._element.classList.remove('showing');
+                _0x4ae6b6.trigger(this._element, "shown.bs.offcanvas", {
+                    'relatedTarget': _0x5e4a52
+                });
+            };
+            this._queueCallback(_0x4dcd51, this._element, true);
+        }
+        hide() {
+            if (!this._isShown) {
+                return;
+            }
+            const _0x3f0b57 = _0x4ae6b6.trigger(this._element, "hide.bs.offcanvas");
+            if (_0x3f0b57.defaultPrevented) {
+                return;
+            }
+            this._focustrap.deactivate();
+            this._element.blur();
+            this._isShown = false;
+            this._element.classList.add("hiding");
+            this._backdrop.hide();
+            const _0x2a3518 = () => {
+                this._element.classList.remove('show', "hiding");
+                this._element.removeAttribute('aria-modal');
+                this._element.removeAttribute("role");
+                if (!this._config.scroll) {
+                    new _0x2aedd3().reset();
+                }
+                _0x4ae6b6.trigger(this._element, "hidden.bs.offcanvas");
+            };
+            this._queueCallback(_0x2a3518, this._element, true);
+        }
+        dispose() {
+            this._backdrop.dispose();
+            this._focustrap.deactivate();
+            super.dispose();
+        }
+        _initializeBackDrop() {
+            const _0x68e531 = () => {
+                if (this._config.backdrop === 'static') {
+                    _0x4ae6b6.trigger(this._element, "hidePrevented.bs.offcanvas");
+                    return;
+                }
+                this.hide();
+            };
+            const _0x493491 = Boolean(this._config.backdrop);
+            return new _0x5b24f2({
+                'className': "offcanvas-backdrop",
+                'isVisible': _0x493491,
+                'isAnimated': true,
+                'rootElement': this._element.parentNode,
+                'clickCallback': _0x493491 ? _0x68e531 : null
+            });
+        }
+        _initializeFocusTrap() {
+            return new _0xf1de2d({
+                'trapElement': this._element
+            });
+        }
+        _addEventListeners() {
+            _0x4ae6b6.on(this._element, "keydown.dismiss.bs.offcanvas", _0x18ef48 => {
+                if (_0x18ef48.key !== "Escape") {
+                    return;
+                }
+                if (this._config.keyboard) {
+                    this.hide();
+                    return;
+                }
+                _0x4ae6b6.trigger(this._element, "hidePrevented.bs.offcanvas");
+            });
+        }
+        static jQueryInterface(_0x4f4ce3) {
+            return this.each(function() {
+                const _0x559663 = _0xed96f0.getOrCreateInstance(this, _0x4f4ce3);
+                if (typeof _0x4f4ce3 !== "string") {
+                    return;
+                }
+                if (_0x559663[_0x4f4ce3] === undefined || _0x4f4ce3.startsWith('_') || _0x4f4ce3 === "constructor") {
+                    throw new TypeError("No method named \"" + _0x4f4ce3 + '"');
+                }
+                _0x559663[_0x4f4ce3](this);
+            });
+        }
+    }
+    _0x4ae6b6.on(document, "click.bs.offcanvas.data-api", "[data-bs-toggle=\"offcanvas\"]", function(_0x32d08c) {
+        const _0xcd3980 = _0x520737.getElementFromSelector(this);
+        if (['A', "AREA"].includes(this.tagName)) {
+            _0x32d08c.preventDefault();
+        }
+        if (_0x2169f1.isDisabled(this)) {
+            return;
+        }
+        _0x4ae6b6.one(_0xcd3980, "hidden.bs.offcanvas", () => {
+            if (_0x2169f1.isVisible(this)) {
+                this.focus();
+            }
+        });
+        const _0x48fc1e = _0x520737.findOne(".offcanvas.show");
+        if (_0x48fc1e && _0x48fc1e !== _0xcd3980) {
+            _0xed96f0.getInstance(_0x48fc1e).hide();
+        }
+        const _0x3208c7 = _0xed96f0.getOrCreateInstance(_0xcd3980);
+        _0x3208c7.toggle(this);
+    });
+    _0x4ae6b6.on(window, "load.bs.offcanvas.data-api", () => {
+        for (const _0x41c889 of _0x520737.find(".offcanvas.show")) {
+            _0xed96f0.getOrCreateInstance(_0x41c889).show();
+        }
+    });
+    _0x4ae6b6.on(window, "resize.bs.offcanvas", () => {
+        for (const _0x40dd55 of _0x520737.find("[aria-modal][class*=show][class*=offcanvas-]")) {
+            if (getComputedStyle(_0x40dd55).position !== "fixed") {
+                _0xed96f0.getOrCreateInstance(_0x40dd55).hide();
+            }
+        }
+    });
+    _0x2e81d7.enableDismissTrigger(_0xed96f0);
+    _0x2169f1.defineJQueryPlugin(_0xed96f0);
+    return _0xed96f0;
+});
